@@ -48,6 +48,11 @@
             event.preventDefault()
         }
 
+        window.addEventListener("touchmove", function(event) {
+            event.preventDefault()
+        }, false)
+
+
         fackget = {
             num: 1,
             get: function(id) {
