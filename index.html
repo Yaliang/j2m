@@ -21,6 +21,7 @@
     </style>
 
     <link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css" />
+    <link rel="stylesheet" href="./index.css" />
     <script src="http://libs.baidu.com/jquery/1.11.3/jquery.min.js"></script>
     <script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
     <script src="./script/fastclick-master/lib/fastclick.js"></script>
@@ -41,12 +42,6 @@
             console.log(event.state)
             window.history.replaceState(event.state, event.state.title, event.state.url)
         }, false)
-
-        window.onscroll = function(event) {
-            console.log("scroll")
-            $(".ui-page-active").children(".ui-content").prepend("<p>scroll</p>")
-            event.preventDefault()
-        }
 
         window.addEventListener("touchmove", function(event) {
             event.preventDefault()

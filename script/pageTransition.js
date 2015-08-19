@@ -117,7 +117,7 @@
 	 * @author Yaliang
 	 * @anotherdate 2015-08-17T20:47:00+0800
 	 * @return      {String}                 The id of the current page
-	 */		
+	 */
 	pageTransition.prototype.popPage = function() {
 		return this.pageStack.pop()
 	}
@@ -186,6 +186,9 @@
 			var foot_height = $(this).children(".ctrl-page-footer").outerHeight()
 
 			$(this).children(".ctrl-page-content").outerHeight(window_height - head_height - foot_height).css("overflowY", "scroll")
+			if ( !$(this).children(".ctrl-page-content").prev().hasClass("touch-scroll-bar") ) {
+				$(this).children(".ctrl-page-content").before("<div class='touch-scroll-bar'></div>")
+			}
 
 
 		})
@@ -401,6 +404,83 @@
 		}
 	}
 
+	pageTransition.prototype.touchUpdateScrollBar =  function(event) {
+		if (this.scrollElement.prev().hasClass("touch-scroll-bar")) {
+			var scrollHeight = this.scrollElement[0].scrollHeight
+			var clippedHeight = this.scrollElement.outerHeight()
+			var scrollTop = this.scrollElement.scrollTop()
+			var offsetTop = this.scrollElement.offset().top + Math.round(1.0*scrollTop/scrollHeight * clippedHeight)
+			this.scrollElement.prev().height(Math.round(1.0*clippedHeight*clippedHeight/scrollHeight))
+			this.scrollElement.prev().offset({top: offsetTop, right: 10})
+		}
+	}
+
+	pageTransition.prototype.touchShowScrollBar = function(event) {
+		if (this.scrollElement.prev().hasClass("touch-scroll-bar")) {
+			var scrollHeight = this.scrollElement[0].scrollHeight
+			var clippedHeight = this.scrollElement.outerHeight()
+			if (scrollHeight > clippedHeight) {
+				this.scrollElement.prev().fadeIn()
+			}
+		}
+	}
+
+	pageTransition.prototype.touchHideScrollBar = function(event) {
+		if (this.scrollElement.prev().hasClass("touch-scroll-bar")) {
+			this.scrollElement.prev().fadeOut()
+		}
+	}
+
+	pageTransition.prototype.touchYcontrollerStartEvent = function(event) {
+		/** find the closest scroll-over y */
+		var closestBlocker = $(event.originalEvent.target)
+		while (closestBlocker[0].parentElement != null && closestBlocker.length > 0 && closestBlocker.css("overflowY") != "scroll") {
+			closestBlocker = closestBlocker.parent()
+		}
+
+		/** set up the scroll functionality */
+		if (closestBlocker[0].parentElement == null && closestBlocker.css("overflowY") != "scroll") {
+			/** ignore the scroll event */
+			this.scrollElement = null
+		} else {
+			this.scrollElement = closestBlocker
+			this.startY = event.originalEvent.touches[0].clientY
+			this.currentY = this.startY
+			this.touchUpdateScrollBar()
+			this.touchShowScrollBar()
+		}
+	}
+
+	pageTransition.prototype.touchYcontrollerMoveEvent = function(event) {
+		if (this.scrollElement != null) {
+			this.lastY = this.currentY
+			this.currentY = event.originalEvent.touches[0].clientY
+			this.moveRateY = (1+Math.round(Math.abs(this.currentY - this.lastY) / 10))
+			if (this.moveRateY > 1) {
+				this.slowMoveEventsTimeY = 0
+			} else {
+				this.slowMoveEventsTimeY += 1
+			}
+			var newTop = $(this.scrollElement).scrollTop() - (this.currentY - this.lastY)
+			$(this.scrollElement).scrollTop(newTop)
+			if ( $(this.scrollElement).scrollTop() == 0 && $(this.scrollElement).attr("data-overscroll") == "true") {
+				/** handle over scroll */
+			} else {
+				/** search the up level scroll element */
+			}
+			this.touchUpdateScrollBar()
+
+		}
+	}
+
+	pageTransition.prototype.touchYcontrollerEndEvent = function(event) {
+		if (this.scrollElement != null) {
+			this.touchHideScrollBar()
+
+			/** handle the over scroll animation */
+		}
+	}
+
 	/**
 	 * The function to initialize the touch events, which including setting up the elements and binding events
 	 * @param  {Object} options The options to specialize the elements related for the touch events
@@ -418,12 +498,15 @@
 		/** rebind the touch events */
 		$(this.selector).bind("touchstart", this, function(event) {
 			event.data.touchXcontrollerStartEvent(event)
+			event.data.touchYcontrollerStartEvent(event)
 		})
 		$(this.selector).bind("touchmove", this, function(event) {
 			event.data.touchXcontrollerMoveEvent(event)
+			event.data.touchYcontrollerMoveEvent(event)
 		})
 		$(this.selector).bind("touchend", this, function(event) {
 			event.data.touchXcontrollerEndEvent(event)
+			event.data.touchYcontrollerEndEvent(event)
 		})
 	}
 
