@@ -46,6 +46,12 @@
 		this.leftActive = options.leftActive || 30
 
 		/**
+		 * The background color of the transition
+		 * @type {String}
+		 */
+		this.backgroundColor = options.backgroundColor || "black"
+
+		/**
 		 * The initial scale for the previous page
 		 * @type {Number}
 		 */
@@ -63,6 +69,11 @@
 		 */
 		this.backActive = options.backActive || 0.3
 
+		/**
+		 * Call the loadPage function to load the target file
+		 * @param  {Number} window.location.hash.length The length of specific hash tag. When it's zero, load the default page
+		 * @return {[type]}                             [description]
+		 */
 		if (window.location.hash.length == 0) {
 			this.loadPage()
 		} else {
@@ -120,7 +131,14 @@
 	pageTransition.prototype.createPage = function(obj) {
 
 		/**
-		 * obj contains 
+		 * obj is an extracted object to specific the content and setup of the new page
+		 *
+		 * obj.pageId: the id of the page
+		 * obj.pageUrl: the url of the page
+		 * obj.header: the header of the page
+		 * obj.content: the main content of the page
+		 * obj.footer: the footer of the page
+		 * 
 		 */
 
 		/**
@@ -184,10 +202,8 @@
 	 */
 	pageTransition.prototype.loadPage = function(id) {
 
-		// console.log("called loadPage")
 		var obj = fackget.get(id)
-		// console.log(obj)
-		// console.log(this)
+
 		if ($("#"+id).length == 0) {
 			var newPage = this.createPage(obj)
 		}
@@ -208,25 +224,50 @@
 	 * @return      {[type]}                 [description]
 	 */
 	pageTransition.prototype.backPage = function() {
+
+		/**
+		 * manually change the active page class.
+		 * The purpose of this operation is to avoid the flicker happened at the moment 
+		 * when the page pop back to the previous page
+		 */
 		this.nowElement.removeClass("ui-page-active")
 		this.prevElement.addClass("ui-page-active")
+
+		/** pop a history state of the previous page */
 		window.history.back()
-		if (this.nowElement.attr("data-remove") != "forever") {
+
+		/**
+		 * remove the element, when the page set need to removed when it is pop from history stack
+		 * or request a force reload when it's reappeared
+		 */
+		if (this.nowElement.attr("data-remove") == "forever" || this.nowElement.attr("data-reload") == "true") {
 			this.pageTrash.push(this.nowElement)
-		} else {
 			this.nowElement.remove()
 		}
+
+		/** maintain the pageStack */
 		this.popPage()
 	}
 
-	pageTransition.prototype.touchAnimateStop = function() {
-		this.touchXcontrollerStop()
-		if (typeof this.selector != "undefined") {
+	/**
+	 * The function to unbind the x-controller
+	 * @return {[type]} [description]
+	 */
+	pageTransition.prototype.touchXcontrollerStop = function() {
+		/** stop the animation */
+		this.touchAnimateStop()
+
+		/** unbind the touch listener when $(this.selector) exists*/
+		if (typeof this.selector != "undefined" && $(this.selector).length > 0) {
 			$(this.selector).unbind("touchstart").unbind("touchmove").unbind("touchend")
 		}
 	}
 
-	pageTransition.prototype.touchXcontrollerStop = function() {
+	/**
+	 * The function to stop the animation applied on the current and previous elements
+	 * @return {[type]} [description]
+	 */
+	pageTransition.prototype.touchAnimateStop = function() {
 		if (typeof this.nowElement != "undefined" && this.nowElement.length > 0) {
 			this.nowElement.stop()
 			this.nowElement.css("left","")
@@ -241,20 +282,33 @@
 		}
 	}
 
+	/**
+	 * The event handler which handle the touch start.
+	 * @param  {Object} event The event object of the touch event
+	 * @return {[type]}       [description]
+	 */
 	pageTransition.prototype.touchXcontrollerStartEvent = function(event) {
-		// console.log("start touch")
-		// console.log(this)
 		this.startX = event.originalEvent.touches[0].clientX
 		this.currentX = this.startX
 	}
 
+	/**
+	 * The event handler which handle the touch move
+	 * @param  {Object} event The event object of the touch event
+	 * @return {[type]}       [description]
+	 */
 	pageTransition.prototype.touchXcontrollerMoveEvent = function(event) {
-		// console.log("move touch")
-		// console.log(this)
 		this.currentX = event.originalEvent.touches[0].clientX
+
+		/** if the touch start point is in the left active area, then the animation of transition is updated. Otherwise, stop the animation */
 		if (this.startX < this.leftActive && this.prevElement.length > 0) {
+			/** set the previous element visible */
 			this.prevElement.css("display", "block")
-			$(this.selector).css("background-color","black")
+
+			/** set the transition background */
+			$(this.selector).css("background-color",this.backgroundColor)
+
+			/** set the transition animation*/
 			var distance = this.currentX - this.startX
 			var fullwidth = $(window).width()
 			this.nowElement.children(".ui-content").outerWidth(fullwidth)
@@ -266,23 +320,33 @@
 			this.prevElement.attr("data-scale", prevElementScale.toString())
 			var prevElementOpac = this.initOpac + (1.0 - this.initOpac)*(1.0*this.currentX / fullwidth)
 			this.prevElement.css("opacity", prevElementOpac.toString())
+
 		} else {
-			this.touchXcontrollerStop()
+			this.touchAnimateStop()
 		}
 	}
 
+	/**
+	 * The event handler which handle the touch end
+	 * @param  {Object} event The event object of the touch event
+	 * @return {[type]}       [description]
+	 */
 	pageTransition.prototype.touchXcontrollerEndEvent = function(event) {
 		if (this.startX < this.leftActive && this.prevElement.length > 0) {
 			var distance = this.currentX - this.startX
 			var fullwidth = $(window).width()
 			this.nowElement.children(".ui-content").css("width","")
 			this.nowElement.css("width", "")
+
 			if (distance > this.backActive * fullwidth) {
+				/** The touch move distance is over the backActive region, which means page needs to pop back */
 				this.nowElement.bind("transition-done", this, function(event) {
-					event.data.touchXcontrollerStop()
+					event.data.touchAnimateStop()
 					event.data.backPage()
 					$(this).unbind("transition-done")
 				})
+
+				/** start the jquery-based animation for transition between pages */
 				this.nowElement.animate({
 					"left": fullwidth
 				}, {
@@ -291,7 +355,6 @@
 						$(this).trigger("transition-done")
 					}
 				})
-
 				this.prevElement.animate({
 					"opacity": "1",
 				}, {
@@ -303,11 +366,15 @@
 						$(this).css("transform",nowScaleStr).css("-webkit-transform",nowScaleStr).css("-moz-transform", nowScaleStr)
 					}
 				})
+
 			} else {
+				/** The touch move distance is under the backActive region, which means keeping stay in current page */
 				this.nowElement.bind("transition-cancel", this, function(event) {
-					event.data.touchXcontrollerStop()
+					event.data.touchAnimateStop()
 					$(this).unbind("transition-cancel")
 				})
+
+				/** start the jquery-based animation for transition of cancel page back */
 				this.nowElement.animate({
 					"left": "0"
 				}, {
@@ -316,7 +383,6 @@
 						$(this).trigger("transition-cancel")
 					}
 				})
-
 				this.prevElement.animate({
 					"opacity": this.initOpac.toString()
 				}, {
@@ -330,16 +396,25 @@
 				})
 			}
 		} else {
-			// console.log(this)
-			this.touchXcontrollerStop()
+			this.touchAnimateStop()
 		}
 	}
 
+	/**
+	 * The function to initialize the touch events, which including setting up the elements and binding events
+	 * @param  {Object} options The options to specialize the elements related for the touch events
+	 * @return {[type]}         [description]
+	 */
 	pageTransition.prototype.initTouch = function(options) {
-		// console.log(this)
-		this.touchAnimateStop()
+
+		/** unbind touch event and stop animations */
+		this.touchXcontrollerStop()
+
+		/** set new elements reflecting the current and previous pages */
 		this.prevElement = $(options.prevPage)
 		this.nowElement = $(options.nowPage)
+
+		/** rebind the touch events */
 		$(this.selector).bind("touchstart", this, function(event) {
 			event.data.touchXcontrollerStartEvent(event)
 		})
@@ -351,6 +426,12 @@
 		})
 	}
 
+	/**
+	 * Faculty entry for the pageTransition module
+	 * @param  {String} selector The selector for the applied element
+	 * @param  {Object} options  The setup for the transition
+	 * @return {Instant/Object}  Created instant of the pageTransition module
+	 */
 	pageTransition.init = function(selector, options) {
 		return new pageTransition(selector, options)
 	}
