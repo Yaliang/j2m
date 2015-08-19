@@ -42,6 +42,12 @@
             window.history.replaceState(event.state, event.state.title, event.state.url)
         }, false)
 
+        window.onscroll = function(event) {
+            console.log("scroll")
+            $(".ui-page-active").children(".ui-content").prepend("<p>scroll</p>")
+            event.preventDefault()
+        }
+
         fackget = {
             num: 1,
             get: function(id) {

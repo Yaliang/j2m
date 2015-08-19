@@ -7,6 +7,7 @@
 	
 	/**
 	 * The first part load and manage the pages of the app
+	 * The second part handle the touch events
 	 */
 	
 	function pageTransition(selector, options) {
