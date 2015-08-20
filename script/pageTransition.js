@@ -59,6 +59,12 @@
 		this.initScale = options.initScale || 0.92
 
 		/**
+		 * The initial shift on the x direction
+		 * @type {[type]}
+		 */
+		this.initShift = options.initShift || -0.3
+
+		/**
 		 * The initial opacity for the previous page
 		 * @type {Number}
 		 */
@@ -157,7 +163,7 @@
 
 		newPage.find("a").bind("click", this, function(event) {
 			if ($(this).attr("data-nav") == "back") {
-				event.data.backPage()
+				// event.data.backPage()
 			} else {
 				var href = $(this).attr("data-href")
 				event.data.loadPage(href)
@@ -318,10 +324,15 @@
 			this.nowElement.children(".ui-content").outerWidth(fullwidth)
 			this.nowElement.css("left", Math.max(distance, 0).toString()+"px")
 			this.nowElement.css("width", (fullwidth - Math.max(distance, 0)).toString()+"px")
+
 			var prevElementScale = this.initScale + (1.0 - this.initScale)*(1.0*this.currentX / fullwidth)
 			var scaleString = "scale("+prevElementScale.toString()+","+prevElementScale.toString()+")"
 			this.prevElement.css("transform", scaleString).css("-webkit-transform", scaleString).css("-moz-transform", scaleString)
 			this.prevElement.attr("data-scale", prevElementScale.toString())
+
+			var prevElementShift = (this.initShift + (0 - this.initShift)*(1.0*this.currentX / fullwidth))*fullwidth
+			this.prevElement.css("left", Math.round(prevElementShift).toString() + "px")
+
 			var prevElementOpac = this.initOpac + (1.0 - this.initOpac)*(1.0*this.currentX / fullwidth)
 			this.prevElement.css("opacity", prevElementOpac.toString())
 
@@ -336,13 +347,20 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerEndEvent = function(event) {
-		if (this.startX < this.leftActive && this.prevElement.length > 0) {
+		if ((( typeof $(event.target).attr("data-nav") != "undefined" && $(event.target).attr("data-nav").toLowerCase() == "back") || this.startX < this.leftActive) && this.prevElement.length > 0) {
 			var distance = this.currentX - this.startX
 			var fullwidth = $(window).width()
+			/** set the previous element visible */
+			this.prevElement.css("display", "block")
+
+			/** set the transition background */
+			$(this.selector).css("background-color",this.backgroundColor)
+
+			/** initialize the current element's width */
 			this.nowElement.children(".ui-content").css("width","")
 			this.nowElement.css("width", "")
 
-			if (distance > this.backActive * fullwidth) {
+			if (( typeof $(event.target).attr("data-nav") != "undefined") && ($(event.target).attr("data-nav").toString().toLowerCase() == "back") || distance > this.backActive * fullwidth) {
 				/** The touch move distance is over the backActive region, which means page needs to pop back */
 				this.nowElement.bind("transition-done", this, function(event) {
 					event.data.touchAnimateStop()
@@ -361,6 +379,7 @@
 				})
 				this.prevElement.animate({
 					"opacity": "1",
+					"left": "0"
 				}, {
 					duration: 100,
 					progress: function(animate, now, remain) {
