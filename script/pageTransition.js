@@ -369,14 +369,6 @@
 				})
 
 				/** start the jquery-based animation for transition between pages */
-				this.nowElement.animate({
-					"left": fullwidth
-				}, {
-					duration: 100,
-					complete: function() {
-						$(this).trigger("transition-done")
-					}
-				})
 				this.prevElement.animate({
 					"opacity": "1",
 					"left": "0"
@@ -390,6 +382,15 @@
 					}
 				})
 
+				this.nowElement.animate({
+					"left": fullwidth
+				}, {
+					duration: 100,
+					complete: function() {
+						$(this).trigger("transition-done")
+					}
+				})
+
 			} else {
 				/** The touch move distance is under the backActive region, which means keeping stay in current page */
 				this.nowElement.bind("transition-cancel", this, function(event) {
@@ -398,14 +399,6 @@
 				})
 
 				/** start the jquery-based animation for transition of cancel page back */
-				this.nowElement.animate({
-					"left": "0"
-				}, {
-					duration: 100,
-					complete: function() {
-						$(this).trigger("transition-cancel")
-					}
-				})
 				this.prevElement.animate({
 					"opacity": this.initOpac.toString()
 				}, {
@@ -415,6 +408,15 @@
 						var nowScale = initScale + (pageTransition.initScale - initScale)*(1.0*now) 
 						var nowScaleStr = "scale("+nowScale.toString()+","+nowScale.toString()+")"
 						$(this).css("transform",nowScaleStr).css("-webkit-transform",nowScaleStr).css("-moz-transform", nowScaleStr)
+					}
+				})
+
+				this.nowElement.animate({
+					"left": "0"
+				}, {
+					duration: 100,
+					complete: function() {
+						$(this).trigger("transition-cancel")
 					}
 				})
 			}
