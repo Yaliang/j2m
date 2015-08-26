@@ -454,6 +454,7 @@
 			var scrollHeight = this.scrollElement[0].scrollHeight
 			var clippedHeight = this.scrollElement.outerHeight()
 			if (scrollHeight > clippedHeight) {
+				this.scrollElement.prev().stop()
 				this.scrollElement.prev().show()
 			}
 		}
@@ -461,6 +462,7 @@
 
 	pageTransition.prototype.touchHideScrollBar = function() {
 		if (this.scrollElement.prev().hasClass("touch-scroll-bar")) {
+			this.scrollElement.prev().stop()
 			this.scrollElement.prev().fadeOut()
 		}
 	}
@@ -511,6 +513,8 @@
 				/** search the up level scroll element */
 			}
 			this.touchUpdateScrollBar()
+			this.touchShowScrollBar()
+
 
 		}
 	}
@@ -531,6 +535,8 @@
 					var newTop = $(this).scrollTop() - nowSpeed
 					$(this).scrollTop(newTop)
 					event.data.touchUpdateScrollBar()
+					event.data.touchShowScrollBar()
+
 				})
 				this.scrollElement.unbind("smooth-scroll-done").bind("smooth-scroll-done", this, function(event) {
 					event.data.touchHideScrollBar()
