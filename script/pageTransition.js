@@ -77,6 +77,12 @@
 		this.backActive = options.backActive || 0.3
 
 		/**
+		 * The millisecond time of the page transition on a back event
+		 * @type {Number}
+		 */
+		this.transitionTime = options.transitionTime || 200
+
+		/**
 		 * Call the loadPage function to load the target file
 		 * @param  {Number} window.location.hash.length The length of specific hash tag. When it's zero, load the default page
 		 * @return {[type]}                             [description]
@@ -170,18 +176,16 @@
 			}
 		})
 
-		var touchEventOptions = {}
-		touchEventOptions.pageTransition = this
-		touchEventOptions.prevPage = "#" + this.nowPage()
-		touchEventOptions.nowPage = "#" + obj.pageId
-		touchEventOptions.backFunction = this.backPage
-		$(document).on("pageshow", "#"+obj.pageId, touchEventOptions, function(event) {
+		$(document).on("pageshow", "#"+obj.pageId, this, function(event) {
 			/**
 			 * Set the touch Events, this functionality might be able to move into load page function
 			 */
 
-			var touchEventOptions = event.data
-			touchEventOptions.pageTransition.initTouch(touchEventOptions)
+			event.data.initTouch({
+				prevPage: "#" + event.data.prevPage(),
+				nowPage: "#" + event.data.nowPage(),
+				backFunction: event.data.backPage
+			})
 
 			/**
 			 * Set the outerHeight of content element
@@ -214,6 +218,9 @@
 
 		var obj = fackget.get(id)
 
+		this.pageStack.push(obj.pageId)
+
+
 		if ($("#"+id).length == 0) {
 			var newPage = this.createPage(obj)
 		}
@@ -222,7 +229,6 @@
 			transition: "none",
 		} );
 
-		this.pageStack.push(obj.pageId)
 
 		return newPage
 	}
@@ -234,6 +240,9 @@
 	 * @return      {[type]}                 [description]
 	 */
 	pageTransition.prototype.backPage = function() {
+
+		/** maintain the pageStack */
+		this.popPage()
 
 		/**
 		 * manually change the active page class.
@@ -255,8 +264,6 @@
 			this.nowElement.remove()
 		}
 
-		/** maintain the pageStack */
-		this.popPage()
 	}
 
 	/**
@@ -373,7 +380,7 @@
 					"opacity": "1",
 					"left": "0"
 				}, {
-					duration: 100,
+					duration: this.transitionTime,
 					progress: function(animate, now, remain) {
 						var initScale = parseFloat($(this).attr("data-scale"))
 						var nowScale = initScale + (1.0 - initScale)*(1.0*now) 
@@ -385,7 +392,7 @@
 				this.nowElement.animate({
 					"left": fullwidth
 				}, {
-					duration: 100,
+					duration: this.transitionTime,
 					complete: function() {
 						$(this).trigger("transition-done")
 					}
@@ -402,7 +409,7 @@
 				this.prevElement.animate({
 					"opacity": this.initOpac.toString()
 				}, {
-					duration: 100,
+					duration: this.transitionTime,
 					progress: function(animate, now, remain) {
 						var initScale = parseFloat($(this).attr("data-scale"))
 						var nowScale = initScale + (pageTransition.initScale - initScale)*(1.0*now) 
@@ -414,7 +421,7 @@
 				this.nowElement.animate({
 					"left": "0"
 				}, {
-					duration: 100,
+					duration: this.transitionTime,
 					complete: function() {
 						$(this).trigger("transition-cancel")
 					}
@@ -509,7 +516,7 @@
 	 */
 	pageTransition.prototype.initTouch = function(options) {
 
-		/** unbind touch event and stop animations */
+		/** unbind touch event for x direction and stop animations */
 		this.touchXcontrollerStop()
 
 		/** set new elements reflecting the current and previous pages */
