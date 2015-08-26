@@ -86,7 +86,7 @@
 		 * The damping of the smooth scroll
 		 * @type {Number}
 		 */
-		this.scrollDamping = options.scrollDamping || 7
+		this.scrollDamping = options.scrollDamping || 8
 
 		/**
 		 * Call the loadPage function to load the target file
@@ -556,7 +556,7 @@
 					a.rawSpeedY = endSpeed
 					a.touchUpdateScrollBar()
 					a.touchShowScrollBar()
-					if (Math.abs(deltaTop) < 0.02) {
+					if (Math.abs(deltaTop) < 0.05) {
 						a.scrollElement.trigger("smooth-scroll-done")
 					}
 
