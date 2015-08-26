@@ -455,6 +455,7 @@
 			var clippedHeight = this.scrollElement.outerHeight()
 			if (scrollHeight > clippedHeight) {
 				this.scrollElement.prev().stop()
+				this.scrollElement.prev().css("opacity","")
 				this.scrollElement.prev().show()
 			}
 		}
