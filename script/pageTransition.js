@@ -83,10 +83,10 @@
 		this.transitionTime = options.transitionTime || 200
 
 		/**
-		 * The interval for applying a smooth scroll
+		 * The damping of the smooth scroll
 		 * @type {Number}
 		 */
-		this.smoothScrollTime = options.smoothScrollTime || 1000
+		this.scrollDamping = options.scrollDamping || 4.5
 
 		/**
 		 * Call the loadPage function to load the target file
@@ -480,10 +480,15 @@
 			/** ignore the scroll event */
 			this.scrollElement = null
 		} else {
+			window.clearInterval(this.smoothScrollInterval)
 			this.scrollElement = closestBlocker
-			this.scrollElement.stop()
+			this.scrollElementTop = this.scrollElement.scrollTop()
 			this.startY = event.originalEvent.touches[0].clientY
+			this.startYTime = event.timeStamp
+			this.lastY = this.startY
+			this.lastYTime = this.startYTime
 			this.currentY = this.startY
+			this.currentYTime = event.timeStamp
 			this.lastRawSpeedY = 0
 			this.rawSpeedY = 0
 			this.moveRateY = 0
@@ -496,18 +501,20 @@
 	pageTransition.prototype.touchYcontrollerMoveEvent = function(event) {
 		if (this.scrollElement != null) {
 			this.lastY = this.currentY
+			this.lastYTime = this.currentYTime
 			this.currentY = event.originalEvent.touches[0].clientY
+			this.currentYTime = event.timeStamp
 			this.moveRateY = (1+Math.round(Math.abs(this.currentY - this.lastY) / 10))
 			this.lastRawSpeedY = this.rawSpeedY
-			this.rawSpeedY = (this.currentY - this.lastY)
+			this.rawSpeedY = 1.0 * (this.currentY - this.lastY) / (this.currentYTime - this.lastYTime) * 1000 // px/s
 			if (this.moveRateY > 1) {
 				this.slowMoveEventsTimeY = 0
 			} else {
 				this.slowMoveEventsTimeY += 1
 			}
-			console.log(this.rawSpeedY)
-			var newTop = this.scrollElement.scrollTop() - (this.currentY - this.lastY)
-			this.scrollElement.scrollTop(newTop)
+			var newTop = this.scrollElementTop - (this.currentY - this.lastY)
+			this.scrollElement.scrollTop(Math.round(newTop))
+			this.scrollElementTop = newTop
 			if ( this.scrollElement.scrollTop() == 0 && this.scrollElement.attr("data-overscroll") == "true") {
 				/** handle over scroll */
 			} else {
@@ -529,34 +536,32 @@
 					this.rawSpeedY = this.lastRawSpeedY
 
 				/** bind the events for smooth scroll */
-				this.scrollElement.unbind("smooth-scroll").bind("smooth-scroll", this, function(event, now) {
-					var initSpeed = event.data.rawSpeedY
-					// console.log("initial speed in y: %d", event.data.rawSpeedY)
-					var nowSpeed = 1.0*initSpeed + (0.0 - 1.0*initSpeed)*(1.0*now)
-					var newTop = $(this).scrollTop() - nowSpeed
-					$(this).scrollTop(newTop)
-					event.data.touchUpdateScrollBar()
-					event.data.touchShowScrollBar()
-
-				})
-				this.scrollElement.unbind("smooth-scroll-done").bind("smooth-scroll-done", this, function(event) {
+				this.scrollElement.bind("smooth-scroll-done", this, function(event) {
+					window.clearInterval(event.data.smoothScrollInterval)
 					event.data.touchHideScrollBar()
-					$(this).unbind("smooth-scroll-done")
+					event.data.scrollElement.unbind("smooth-scroll-done")
 				})
 
-				/** add a animation for smooth scroll */
-				this.scrollElement.animate({
-					"notexistingcss": "100"
-				}, {
-					duration: this.smoothScrollTime,
-					progress: function(animate, now, remain) {
-						$(this).trigger("smooth-scroll",[now])
-					},
-					complete: function() {
-						$(this).unbind("smooth-scroll")
-						$(this).trigger("smooth-scroll-done")
+				/** set the interval to update the smooth scroll */
+				this.smoothScrollInterval = setInterval(function(a) {
+					/** use damping model to build a smooth scroll animation */
+					var deltatime = 3.0/1000
+					var initSpeed = 1.0*a.rawSpeedY
+					var endSpeed = initSpeed - 0.5*a.scrollDamping*initSpeed*deltatime
+					var avgSpeed = (initSpeed + endSpeed) / 2.0
+					var deltaTop = avgSpeed * deltatime
+					var newTop = a.scrollElementTop - deltaTop
+					a.scrollElement.scrollTop(Math.round(newTop))
+					a.scrollElementTop = newTop
+					a.rawSpeedY = endSpeed
+					a.touchUpdateScrollBar()
+					a.touchShowScrollBar()
+					if (Math.abs(deltaTop) < 0.004) {
+						a.scrollElement.trigger("smooth-scroll-done")
 					}
-				})
+
+				}, 3, this)
+
 			} else {
 				this.touchHideScrollBar()
 			}
