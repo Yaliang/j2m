@@ -77,6 +77,18 @@
 		this.backActive = options.backActive || 0.3
 
 		/**
+		 * The millisecond time of the page transition on a back event
+		 * @type {Number}
+		 */
+		this.transitionTime = options.transitionTime || 200
+
+		/**
+		 * The interval for applying a smooth scroll
+		 * @type {Number}
+		 */
+		this.smoothScrollTime = options.smoothScrollTime || 1000
+
+		/**
 		 * Call the loadPage function to load the target file
 		 * @param  {Number} window.location.hash.length The length of specific hash tag. When it's zero, load the default page
 		 * @return {[type]}                             [description]
@@ -170,18 +182,16 @@
 			}
 		})
 
-		var touchEventOptions = {}
-		touchEventOptions.pageTransition = this
-		touchEventOptions.prevPage = "#" + this.nowPage()
-		touchEventOptions.nowPage = "#" + obj.pageId
-		touchEventOptions.backFunction = this.backPage
-		$(document).on("pageshow", "#"+obj.pageId, touchEventOptions, function(event) {
+		$(document).on("pageshow", "#"+obj.pageId, this, function(event) {
 			/**
 			 * Set the touch Events, this functionality might be able to move into load page function
 			 */
 
-			var touchEventOptions = event.data
-			touchEventOptions.pageTransition.initTouch(touchEventOptions)
+			event.data.initTouch({
+				prevPage: "#" + event.data.prevPage(),
+				nowPage: "#" + event.data.nowPage(),
+				backFunction: event.data.backPage
+			})
 
 			/**
 			 * Set the outerHeight of content element
@@ -214,6 +224,9 @@
 
 		var obj = fackget.get(id)
 
+		this.pageStack.push(obj.pageId)
+
+
 		if ($("#"+id).length == 0) {
 			var newPage = this.createPage(obj)
 		}
@@ -222,7 +235,6 @@
 			transition: "none",
 		} );
 
-		this.pageStack.push(obj.pageId)
 
 		return newPage
 	}
@@ -234,6 +246,9 @@
 	 * @return      {[type]}                 [description]
 	 */
 	pageTransition.prototype.backPage = function() {
+
+		/** maintain the pageStack */
+		this.popPage()
 
 		/**
 		 * manually change the active page class.
@@ -255,8 +270,6 @@
 			this.nowElement.remove()
 		}
 
-		/** maintain the pageStack */
-		this.popPage()
 	}
 
 	/**
@@ -373,7 +386,7 @@
 					"opacity": "1",
 					"left": "0"
 				}, {
-					duration: 100,
+					duration: this.transitionTime,
 					progress: function(animate, now, remain) {
 						var initScale = parseFloat($(this).attr("data-scale"))
 						var nowScale = initScale + (1.0 - initScale)*(1.0*now) 
@@ -385,7 +398,7 @@
 				this.nowElement.animate({
 					"left": fullwidth
 				}, {
-					duration: 100,
+					duration: this.transitionTime,
 					complete: function() {
 						$(this).trigger("transition-done")
 					}
@@ -402,7 +415,7 @@
 				this.prevElement.animate({
 					"opacity": this.initOpac.toString()
 				}, {
-					duration: 100,
+					duration: this.transitionTime,
 					progress: function(animate, now, remain) {
 						var initScale = parseFloat($(this).attr("data-scale"))
 						var nowScale = initScale + (pageTransition.initScale - initScale)*(1.0*now) 
@@ -414,7 +427,7 @@
 				this.nowElement.animate({
 					"left": "0"
 				}, {
-					duration: 100,
+					duration: this.transitionTime,
 					complete: function() {
 						$(this).trigger("transition-cancel")
 					}
@@ -425,7 +438,7 @@
 		}
 	}
 
-	pageTransition.prototype.touchUpdateScrollBar =  function(event) {
+	pageTransition.prototype.touchUpdateScrollBar =  function() {
 		if (this.scrollElement.prev().hasClass("touch-scroll-bar")) {
 			var scrollHeight = this.scrollElement[0].scrollHeight
 			var clippedHeight = this.scrollElement.outerHeight()
@@ -436,17 +449,17 @@
 		}
 	}
 
-	pageTransition.prototype.touchShowScrollBar = function(event) {
+	pageTransition.prototype.touchShowScrollBar = function() {
 		if (this.scrollElement.prev().hasClass("touch-scroll-bar")) {
 			var scrollHeight = this.scrollElement[0].scrollHeight
 			var clippedHeight = this.scrollElement.outerHeight()
 			if (scrollHeight > clippedHeight) {
-				this.scrollElement.prev().fadeIn()
+				this.scrollElement.prev().show()
 			}
 		}
 	}
 
-	pageTransition.prototype.touchHideScrollBar = function(event) {
+	pageTransition.prototype.touchHideScrollBar = function() {
 		if (this.scrollElement.prev().hasClass("touch-scroll-bar")) {
 			this.scrollElement.prev().fadeOut()
 		}
@@ -465,8 +478,13 @@
 			this.scrollElement = null
 		} else {
 			this.scrollElement = closestBlocker
+			this.scrollElement.stop()
 			this.startY = event.originalEvent.touches[0].clientY
 			this.currentY = this.startY
+			this.lastRawSpeedY = 0
+			this.rawSpeedY = 0
+			this.moveRateY = 0
+			this.slowMoveEventsTimeY = 100
 			this.touchUpdateScrollBar()
 			this.touchShowScrollBar()
 		}
@@ -477,14 +495,17 @@
 			this.lastY = this.currentY
 			this.currentY = event.originalEvent.touches[0].clientY
 			this.moveRateY = (1+Math.round(Math.abs(this.currentY - this.lastY) / 10))
+			this.lastRawSpeedY = this.rawSpeedY
+			this.rawSpeedY = (this.currentY - this.lastY)
 			if (this.moveRateY > 1) {
 				this.slowMoveEventsTimeY = 0
 			} else {
 				this.slowMoveEventsTimeY += 1
 			}
-			var newTop = $(this.scrollElement).scrollTop() - (this.currentY - this.lastY)
-			$(this.scrollElement).scrollTop(newTop)
-			if ( $(this.scrollElement).scrollTop() == 0 && $(this.scrollElement).attr("data-overscroll") == "true") {
+			console.log(this.rawSpeedY)
+			var newTop = this.scrollElement.scrollTop() - (this.currentY - this.lastY)
+			this.scrollElement.scrollTop(newTop)
+			if ( this.scrollElement.scrollTop() == 0 && this.scrollElement.attr("data-overscroll") == "true") {
 				/** handle over scroll */
 			} else {
 				/** search the up level scroll element */
@@ -496,7 +517,42 @@
 
 	pageTransition.prototype.touchYcontrollerEndEvent = function(event) {
 		if (this.scrollElement != null) {
-			this.touchHideScrollBar()
+			/** handle smooth scroll */
+			if (this.slowMoveEventsTimeY <= 1) {
+				/** use the greater speed in current two events */
+				if (Math.abs(this.lastRawSpeedY) > Math.abs(this.rawSpeedY))
+					this.rawSpeedY = this.lastRawSpeedY
+
+				/** bind the events for smooth scroll */
+				this.scrollElement.unbind("smooth-scroll").bind("smooth-scroll", this, function(event, now) {
+					var initSpeed = event.data.rawSpeedY
+					// console.log("initial speed in y: %d", event.data.rawSpeedY)
+					var nowSpeed = 1.0*initSpeed + (0.0 - 1.0*initSpeed)*(1.0*now)
+					var newTop = $(this).scrollTop() - nowSpeed
+					$(this).scrollTop(newTop)
+					event.data.touchUpdateScrollBar()
+				})
+				this.scrollElement.unbind("smooth-scroll-done").bind("smooth-scroll-done", this, function(event) {
+					event.data.touchHideScrollBar()
+					$(this).unbind("smooth-scroll-done")
+				})
+
+				/** add a animation for smooth scroll */
+				this.scrollElement.animate({
+					"notexistingcss": "100"
+				}, {
+					duration: this.smoothScrollTime,
+					progress: function(animate, now, remain) {
+						$(this).trigger("smooth-scroll",[now])
+					},
+					complete: function() {
+						$(this).unbind("smooth-scroll")
+						$(this).trigger("smooth-scroll-done")
+					}
+				})
+			} else {
+				this.touchHideScrollBar()
+			}
 
 			/** handle the over scroll animation */
 		}
@@ -509,7 +565,7 @@
 	 */
 	pageTransition.prototype.initTouch = function(options) {
 
-		/** unbind touch event and stop animations */
+		/** unbind touch event for x direction and stop animations */
 		this.touchXcontrollerStop()
 
 		/** set new elements reflecting the current and previous pages */

@@ -87,7 +87,7 @@ textarea {
     float: right;
     width: 2px;
     border-radius: 2px;
-    background-color: rgba(0,0,0,0.19);
+    background-color: rgba(0,0,0,0.39);
     position: fixed;
     right: 2px;
     z-index: 100;
