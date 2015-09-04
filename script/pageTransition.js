@@ -335,7 +335,7 @@
 		this.xblock = true
 		this.nowFinger = event.originalEvent.touches[0].identifier
 
-		this.nowElement.children(".ui-content").prepend(this.nowFinger)
+		this.nowElement.children(".ui-content").prepend(this.nowFinger+","+event.originalEvent.changedTouches[0].identifier+"</br>")
 	}
 
 	/**
@@ -344,6 +344,8 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerMoveEvent = function(event) {
+		this.nowElement.children(".ui-content").prepend(event.originalEvent.touches[0].identifier + ","+event.originalEvent.changedTouches[0].identifier+"</br>")
+
 		if (event.originalEvent.touches[0].identifier != this.nowFinger) {
 			return 
 		}
