@@ -326,14 +326,14 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerStartEvent = function(event) {
-		if (this.xblock == true) {
+		if (typeof this.xblock != "undefined" && this.xblock == true) {
 			return
 		}
-		console.log(event)
+		// console.log(event)
 		this.startX = event.originalEvent.touches[0].clientX
 		this.currentX = this.startX
 		this.xblock = true
-		this.nowFinger = event.originalEvent.changedTouches[0].identifier
+		this.nowFinger = event.originalEvent.touches[0].identifier
 	}
 
 	/**
@@ -342,7 +342,7 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerMoveEvent = function(event) {
-		if (event.originalEvent.changedTouches[0].identifier != this.nowFinger) {
+		if (event.originalEvent.touches[0].identifier != this.nowFinger) {
 			return 
 		}
 
@@ -385,6 +385,7 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerEndEvent = function(event) {
+		// console.log(event)
 		if (event.originalEvent.changedTouches[0].identifier != this.nowFinger) {
 			return 
 		}
