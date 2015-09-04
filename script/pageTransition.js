@@ -334,6 +334,8 @@
 		this.currentX = this.startX
 		this.xblock = true
 		this.nowFinger = event.originalEvent.touches[0].identifier
+
+		this.nowElement.children(".ui-content").prepend(this.nowFinger)
 	}
 
 	/**
