@@ -171,6 +171,14 @@
 		newPage.children(".ctrl-page-content").attr("id",obj.pageId+"-content").html(obj.content)
 		newPage.children(".ctrl-page-footer").attr("id",obj.pageId+"-footer").html(obj.footer)
 
+		/** add attribution for content part*/
+		var contentAttr = obj.contentAttr || {}
+
+		var contentAttrOverScroll = contentAttr.overscroll || false
+		if (contentAttrOverScroll) {
+			newPage.children(".ctrl-page-content").attr("data-overscroll", "true")
+		}
+
 		$("body").append(newPage)
 
 		newPage.find("a").bind("click", this, function(event) {
@@ -193,6 +201,8 @@
 				backFunction: event.data.backPage
 			})
 
+			$(this).css("overflowY","hidden")
+
 			/**
 			 * Set the outerHeight of content element
 			 */
@@ -202,6 +212,10 @@
 			var foot_height = $(this).children(".ctrl-page-footer").outerHeight()
 
 			$(this).children(".ctrl-page-content").outerHeight(window_height - head_height - foot_height).css("overflowY", "scroll")
+			$(this).children(".ctrl-page-content").css({
+				"position":"relative",
+				"top": "0px"
+			})
 			if ( !$(this).children(".ctrl-page-content").prev().hasClass("touch-scroll-bar") ) {
 				$(this).children(".ctrl-page-content").before("<div class='touch-scroll-bar'></div>")
 			}
@@ -294,6 +308,7 @@
 		if (typeof this.nowElement != "undefined" && this.nowElement.length > 0) {
 			this.nowElement.stop()
 			this.nowElement.css("left","")
+			this.nowElement.css("width","")
 		}
 
 		if (typeof this.prevElement != "undefined" && this.prevElement.length > 0) {
@@ -311,8 +326,13 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerStartEvent = function(event) {
+		if (this.xblock == true) {
+			return
+		}
 		this.startX = event.originalEvent.touches[0].clientX
 		this.currentX = this.startX
+		this.xblock = true
+		this.nowFinger = event.originalEvent.changedTouches[0].identifier
 	}
 
 	/**
@@ -321,6 +341,10 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerMoveEvent = function(event) {
+		if (event.originalEvent.changedTouches[0].identifier != this.nowFinger) {
+			return 
+		}
+
 		this.currentX = event.originalEvent.touches[0].clientX
 
 		/** if the touch start point is in the left active area, then the animation of transition is updated. Otherwise, stop the animation */
@@ -360,6 +384,10 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerEndEvent = function(event) {
+		if (event.originalEvent.changedTouches[0].identifier != this.nowFinger) {
+			return 
+		}
+
 		if ((( typeof $(event.target).attr("data-nav") != "undefined" && $(event.target).attr("data-nav").toLowerCase() == "back") || this.startX < this.leftActive) && this.prevElement.length > 0) {
 			var distance = this.currentX - this.startX
 			var fullwidth = $(window).width()
@@ -370,16 +398,11 @@
 			$(this.selector).css("background-color",this.backgroundColor)
 
 			/** initialize the current element's width */
-			this.nowElement.children(".ui-content").css("width","")
-			this.nowElement.css("width", "")
+			// this.nowElement.children(".ui-content").css("width","")
+			// this.nowElement.css("width", "")
 
 			if (( typeof $(event.target).attr("data-nav") != "undefined") && ($(event.target).attr("data-nav").toString().toLowerCase() == "back") || distance > this.backActive * fullwidth) {
 				/** The touch move distance is over the backActive region, which means page needs to pop back */
-				this.nowElement.bind("transition-done", this, function(event) {
-					event.data.touchAnimateStop()
-					event.data.backPage()
-					$(this).unbind("transition-done")
-				})
 
 				/** start the jquery-based animation for transition between pages */
 				this.prevElement.animate({
@@ -395,8 +418,15 @@
 					}
 				})
 
+				this.nowElement.bind("transition-done", this, function(event) {
+					event.data.touchAnimateStop()
+					event.data.backPage()
+					$(this).unbind("transition-done")
+				})
+
 				this.nowElement.animate({
-					"left": fullwidth
+					"left": fullwidth,
+					"width": "0"
 				}, {
 					duration: this.transitionTime,
 					complete: function() {
@@ -425,7 +455,8 @@
 				})
 
 				this.nowElement.animate({
-					"left": "0"
+					"left": "0",
+					"width": fullwidth
 				}, {
 					duration: this.transitionTime,
 					complete: function() {
@@ -436,6 +467,8 @@
 		} else {
 			this.touchAnimateStop()
 		}
+
+		this.xblock = false
 	}
 
 	pageTransition.prototype.touchUpdateScrollBar =  function() {
@@ -443,8 +476,9 @@
 			var scrollHeight = this.scrollElement[0].scrollHeight
 			var clippedHeight = this.scrollElement.outerHeight()
 			var scrollTop = this.scrollElement.scrollTop()
-			var offsetTop = this.scrollElement.offset().top + Math.round(1.0*scrollTop/scrollHeight * clippedHeight)
-			this.scrollElement.prev().height(Math.round(1.0*clippedHeight*clippedHeight/scrollHeight))
+			var offsetTop = this.scrollElement.offset().top + Math.round(1.0*scrollTop/scrollHeight * clippedHeight) - parseFloat(this.scrollElement.css("top"))
+			var barHeight = Math.max(10,Math.round(1.0*clippedHeight*clippedHeight/scrollHeight * clippedHeight/(parseFloat(this.scrollElement.css("top"))*5+clippedHeight)))
+			this.scrollElement.prev().height(barHeight)
 			this.scrollElement.prev().offset({top: offsetTop, right: 10})
 		}
 	}
@@ -517,6 +551,12 @@
 			this.scrollElementTop = newTop
 			if ( this.scrollElement.scrollTop() == 0 && this.scrollElement.attr("data-overscroll") == "true") {
 				/** handle over scroll */
+				var currentTop = parseFloat(this.scrollElement.css("top"))
+				var currentHeight = this.scrollElement.outerHeight()
+				var currentTopRate = 1.0* currentTop / currentHeight
+				var topYdelta = 1.0*(this.currentY - this.lastY)/(1.0+25.0*currentTopRate)
+				var newTopY = topYdelta+currentTop
+				this.scrollElement.css("top",(newTopY).toString()+"px")
 			} else {
 				/** search the up level scroll element */
 			}
@@ -529,18 +569,37 @@
 
 	pageTransition.prototype.touchYcontrollerEndEvent = function(event) {
 		if (this.scrollElement != null) {
+
+			/** bind the events for smooth scroll */
+			this.scrollElement.bind("smooth-scroll-done", this, function(event) {
+				event.data.touchHideScrollBar()
+				event.data.scrollElement.unbind("smooth-scroll-done")
+			})
+
+			/** bind the event to handle the over scroll animation */
+			this.scrollElement.bind("over-scroll-recovery", this, function(event) {
+				if (typeof event.data.smoothScrollInterval != "undefined") {
+					window.clearInterval(event.data.smoothScrollInterval)
+				}
+				event.data.scrollElement.animate({
+					"top":"0"
+				}, {
+					duration: 150,
+					complete: function() {
+						$(this).unbind("over-scroll-recovery")
+						$(this).trigger("smooth-scroll-done")
+					}
+				})
+			})
+
 			/** handle smooth scroll */
 			if (this.slowMoveEventsTimeY <= 1) {
 				/** use the greater speed in current two events */
 				if (Math.abs(this.lastRawSpeedY) > Math.abs(this.rawSpeedY))
 					this.rawSpeedY = this.lastRawSpeedY
 
-				/** bind the events for smooth scroll */
-				this.scrollElement.bind("smooth-scroll-done", this, function(event) {
-					window.clearInterval(event.data.smoothScrollInterval)
-					event.data.touchHideScrollBar()
-					event.data.scrollElement.unbind("smooth-scroll-done")
-				})
+
+			
 
 				/** set the interval to update the smooth scroll */
 				this.smoothScrollInterval = setInterval(function(a) {
@@ -554,19 +613,34 @@
 					a.scrollElement.scrollTop(Math.round(newTop))
 					a.scrollElementTop = newTop
 					a.rawSpeedY = endSpeed
+					if ( a.scrollElement.scrollTop() == 0 && a.scrollElement.attr("data-overscroll") == "true") {
+						/** handle over scroll */
+						var currentTop = parseFloat(a.scrollElement.css("top"))
+						var currentHeight = a.scrollElement.outerHeight()
+						var currentTopRate = 1.0* currentTop / currentHeight
+						endSpeed = initSpeed - 0.5*a.scrollDamping*initSpeed*deltatime*(1.0+150.0*currentTopRate)
+						avgSpeed = (initSpeed + endSpeed) / 2.0
+						deltaTop = avgSpeed * deltatime
+						var newTopY = deltaTop+currentTop
+						a.scrollElement.css("top",(newTopY).toString()+"px")
+						a.rawSpeedY = endSpeed
+					} else {
+						/** search the up level scroll element */
+					}
 					a.touchUpdateScrollBar()
 					a.touchShowScrollBar()
 					if (Math.abs(deltaTop) < 0.05) {
-						a.scrollElement.trigger("smooth-scroll-done")
+						a.scrollElement.trigger("over-scroll-recovery")
 					}
 
 				}, 3, this)
 
 			} else {
-				this.touchHideScrollBar()
+				this.scrollElement.trigger("over-scroll-recovery")
 			}
 
-			/** handle the over scroll animation */
+
+
 		}
 	}
 
@@ -594,6 +668,10 @@
 			event.data.touchYcontrollerMoveEvent(event)
 		})
 		$(this.selector).bind("touchend", this, function(event) {
+			event.data.touchXcontrollerEndEvent(event)
+			event.data.touchYcontrollerEndEvent(event)
+		})
+		$(this.selector).bind("touchcancel", this, function(event) {
 			event.data.touchXcontrollerEndEvent(event)
 			event.data.touchYcontrollerEndEvent(event)
 		})

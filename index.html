@@ -69,6 +69,9 @@
                 obj.header = "<h1>Title</h1><a href='#' data-href='' data-nav='back'>Back</a>"
                 obj.main = "<a href='#' data-href='"+this.num.toString()+"' data-transition='none'>To "+this.num.toString()+"</a><p style='word-break: break-all;'>"+strdd+"</p>"
                 obj.content = obj.main
+                obj.contentAttr = {
+                    "overscroll": "true"
+                }
                 obj.footer = "<h1>Footer</h1>"
                 console.log("fackget return")
                 return obj
