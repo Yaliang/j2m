@@ -333,7 +333,7 @@
 		this.startX = event.originalEvent.touches[0].clientX
 		this.currentX = this.startX
 		this.xblock = true
-		this.nowFinger = event.originalEvent.touches[0].identifier
+		this.nowFinger = event.originalEvent.changedTouches[0].identifier
 	}
 
 	/**
@@ -342,7 +342,7 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerMoveEvent = function(event) {
-		if (event.originalEvent.touches[0].identifier != this.nowFinger) {
+		if (event.originalEvent.changedTouches[0].identifier != this.nowFinger) {
 			return 
 		}
 
@@ -385,7 +385,7 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerEndEvent = function(event) {
-		if (event.originalEvent.touches[0].identifier != this.nowFinger) {
+		if (event.originalEvent.changedTouches[0].identifier != this.nowFinger) {
 			return 
 		}
 
