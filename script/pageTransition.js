@@ -330,12 +330,11 @@
 			return
 		}
 		// console.log(event)
-		this.startX = event.originalEvent.touches[0].clientX
+		this.startX = event.originalEvent.changedTouches[0].clientX
 		this.currentX = this.startX
 		this.xblock = true
-		this.nowFinger = event.originalEvent.touches[0].identifier
+		this.nowFinger = event.originalEvent.changedTouches[0].identifier
 
-		this.nowElement.children(".ui-content").prepend(this.nowFinger+","+event.originalEvent.changedTouches[0].identifier+"</br>")
 	}
 
 	/**
@@ -344,13 +343,11 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerMoveEvent = function(event) {
-		this.nowElement.children(".ui-content").prepend(event.originalEvent.touches[0].identifier + ","+event.originalEvent.changedTouches[0].identifier+"</br>")
-
-		if (event.originalEvent.touches[0].identifier != this.nowFinger) {
+		if (parseInt(event.originalEvent.changedTouches[0].identifier) != parseInt(this.nowFinger)) {
 			return 
 		}
 
-		this.currentX = event.originalEvent.touches[0].clientX
+		this.currentX = event.originalEvent.changedTouches[0].clientX
 
 		/** if the touch start point is in the left active area, then the animation of transition is updated. Otherwise, stop the animation */
 		if (this.startX < this.leftActive && this.prevElement.length > 0) {
@@ -389,8 +386,7 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerEndEvent = function(event) {
-		// console.log(event)
-		if (event.originalEvent.changedTouches[0].identifier != this.nowFinger) {
+		if (parseInt(event.originalEvent.changedTouches[0].identifier) != parseInt(this.nowFinger)) {
 			return 
 		}
 
