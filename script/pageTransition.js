@@ -326,13 +326,13 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerStartEvent = function(event) {
-		if (typeof this.xblock != "undefined" && this.xblock == true) {
-			return
-		}
+		// if (typeof this.xblock != "undefined" && this.xblock == true) {
+		// 	return
+		// }
 		// console.log(event)
 		this.startX = event.originalEvent.changedTouches[0].clientX
 		this.currentX = this.startX
-		this.xblock = true
+		// this.xblock = true
 		this.nowFinger = event.originalEvent.changedTouches[0].identifier
 
 	}
@@ -343,9 +343,9 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerMoveEvent = function(event) {
-		if (parseInt(event.originalEvent.changedTouches[0].identifier) != parseInt(this.nowFinger)) {
-			return 
-		}
+		// if (parseInt(event.originalEvent.changedTouches[0].identifier) != parseInt(this.nowFinger)) {
+		// 	return 
+		// }
 
 		this.currentX = event.originalEvent.changedTouches[0].clientX
 
@@ -386,9 +386,9 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerEndEvent = function(event) {
-		if (parseInt(event.originalEvent.changedTouches[0].identifier) != parseInt(this.nowFinger)) {
-			return 
-		}
+		// if (parseInt(event.originalEvent.changedTouches[0].identifier) != parseInt(this.nowFinger)) {
+		// 	return 
+		// }
 
 		if ((( typeof $(event.target).attr("data-nav") != "undefined" && $(event.target).attr("data-nav").toLowerCase() == "back") || this.startX < this.leftActive) && this.prevElement.length > 0) {
 			var distance = this.currentX - this.startX
