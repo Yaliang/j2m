@@ -12,6 +12,12 @@
 	
 	function pageTransition(selector, options) {
 
+		/**
+		 * a stack of the touches
+		 * @type {Array}
+		 */
+		this.touches = []
+
 		options = options || {}
 
 		/**
@@ -473,18 +479,27 @@
 		this.xblock = false
 	}
 
+	/**
+	 * the function to update the location and the length of scroll bar at the side of target
+	 * @return {[type]} [description]
+	 */
 	pageTransition.prototype.touchUpdateScrollBar =  function() {
 		if (this.scrollElement.prev().hasClass("touch-scroll-bar")) {
 			var scrollHeight = this.scrollElement[0].scrollHeight
 			var clippedHeight = this.scrollElement.outerHeight()
 			var scrollTop = this.scrollElement.scrollTop()
 			var offsetTop = this.scrollElement.offset().top + Math.round(1.0*scrollTop/scrollHeight * clippedHeight) - parseFloat(this.scrollElement.css("top"))
-			var barHeight = Math.max(10,Math.round(1.0*clippedHeight*clippedHeight/scrollHeight * clippedHeight/(parseFloat(this.scrollElement.css("top"))*5+clippedHeight)))
+			// console.log(1.0- (parseFloat(this.scrollElement.css("top"))*8.0 / clippedHeight))
+			var barHeight = Math.max(10,Math.round(1.0*clippedHeight*clippedHeight/scrollHeight * (1.0- (parseFloat(this.scrollElement.css("top"))*8.0 / clippedHeight))))
 			this.scrollElement.prev().height(barHeight)
 			this.scrollElement.prev().offset({top: offsetTop, right: 10})
 		}
 	}
 
+	/**
+	 * the function to fadeIn the scroll bar
+	 * @return {[type]} [description]
+	 */
 	pageTransition.prototype.touchShowScrollBar = function() {
 		if (this.scrollElement.prev().hasClass("touch-scroll-bar")) {
 			var scrollHeight = this.scrollElement[0].scrollHeight
@@ -497,6 +512,10 @@
 		}
 	}
 
+	/**
+	 * the function to fadeOut the scroll bar
+	 * @return {[type]} [description]
+	 */
 	pageTransition.prototype.touchHideScrollBar = function() {
 		if (this.scrollElement.prev().hasClass("touch-scroll-bar")) {
 			this.scrollElement.prev().stop()
@@ -504,19 +523,44 @@
 		}
 	}
 
-	pageTransition.prototype.touchYcontrollerStartEvent = function(event) {
-		/** find the closest scroll-over y */
+	/**
+	 * function to find the closest blocker whose y direction over-scroll is enabled
+	 * @param  {Object} event the touch event
+	 * @return {Array}       the closest blocker with enabled y-over-scroll
+	 */
+	pageTransition.prototype.touchFindClosestYOverScrollBlocker = function(event) {
+		/** find the closest scroll-over-y enabled target */
 		var closestBlocker = $(event.originalEvent.target)
 		while (closestBlocker[0].parentElement != null && closestBlocker.length > 0 && closestBlocker.css("overflowY") != "scroll") {
 			closestBlocker = closestBlocker.parent()
 		}
+
+		return closestBlocker
+	}
+
+	/**
+	 * The function to handle the start of vertical touch events
+	 * @param  {Object} event the m event of the jquery
+	 * @return {[type]}       [description]
+	 */
+	pageTransition.prototype.touchYcontrollerStartEvent = function(event) {
+		var closestBlocker = this.touchFindClosestYOverScrollBlocker(event)
 
 		/** set up the scroll functionality */
 		if (closestBlocker[0].parentElement == null && closestBlocker.css("overflowY") != "scroll") {
 			/** ignore the scroll event */
 			this.scrollElement = null
 		} else {
-			window.clearInterval(this.smoothScrollInterval)
+			/** clear the previous smooth scroll event */
+			if (typeof this.smoothScrollInterval != "undefined") {
+				window.clearInterval(this.smoothScrollInterval)
+			}
+			if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
+				this.scrollElement.stop()
+				this.scrollElement.css("top","0")
+			}
+
+			/** initialize the scroll settings */
 			this.scrollElement = closestBlocker
 			this.scrollElementTop = this.scrollElement.scrollTop()
 			this.startY = event.originalEvent.touches[0].clientY
@@ -534,8 +578,13 @@
 		}
 	}
 
+	/**
+	 * the function to handle the move event of the scroll functionality
+	 * @param  {Object} event The event of touch move
+	 * @return {[type]}       [description]
+	 */
 	pageTransition.prototype.touchYcontrollerMoveEvent = function(event) {
-		if (this.scrollElement != null) {
+		if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
 			this.lastY = this.currentY
 			this.lastYTime = this.currentYTime
 			this.currentY = event.originalEvent.touches[0].clientY
@@ -569,13 +618,23 @@
 		}
 	}
 
+	/**
+	 * the function to handle the end event of touch in Y direction
+	 * @param  {Object} event the touchend event
+	 * @return {[type]}       [description]
+	 */
 	pageTransition.prototype.touchYcontrollerEndEvent = function(event) {
-		if (this.scrollElement != null) {
+		if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
 
 			/** bind the events for smooth scroll */
 			this.scrollElement.bind("smooth-scroll-done", this, function(event) {
 				event.data.touchHideScrollBar()
 				event.data.scrollElement.unbind("smooth-scroll-done")
+				event.data.scrollElement.unbind("update-scroll-bar")
+			})
+
+			this.scrollElement.bind("update-scroll-bar", this, function(event) {
+				event.data.touchUpdateScrollBar()
 			})
 
 			/** bind the event to handle the over scroll animation */
@@ -587,6 +646,9 @@
 					"top":"0"
 				}, {
 					duration: 150,
+					progress: function(animate, now, remain) {
+						$(this).trigger("update-scroll-bar")
+					},
 					complete: function() {
 						$(this).unbind("over-scroll-recovery")
 						$(this).trigger("smooth-scroll-done")
@@ -646,6 +708,89 @@
 		}
 	}
 
+	pageTransition.prototype.touchFind = function(touchid) {
+		var touchindex = -1
+		for (var i = 0; i< this.touches.length; i++) {
+			if (this.touches[i].identifier == touchid) {
+				touchindex = i
+				break
+			}
+		}
+
+		return touchindex
+	}
+
+	pageTransition.prototype.touchPrint = function() {
+		var textmsg = "touches number: "+ this.touches.length.toString() + "</br>"
+		for (var i = 0; i<this.touches.length; i++) {
+			textmsg += this.touches[i].identifier.toString() + "</br>"
+		}
+		this.nowElement.children(".ctrl-page-content").children("p").html(textmsg)
+	}
+
+	pageTransition.prototype.touchOnStart = function(event) {
+		var newtouch = {
+			touchObject: event.originalEvent.changedTouches[0]
+		}
+		newtouch.identifier = newtouch.touchObject.identifier
+		newtouch.startX = newtouch.touchObject.clientX
+		newtouch.startY = newtouch.touchObject.clientY
+		newtouch.lastX = newtouch.startX
+		newtouch.lastY = newtouch.startY
+		newtouch.lastT = event.timeStamp
+		newtouch.currentX = newtouch.startX
+		newtouch.currentY = newtouch.startY
+		newtouch.currentT = event.timeStamp
+		newtouch.lastDx = 0.0
+		newtouch.lastDy = 0.0
+		newtouch.currentDx = 0.0
+		newtouch.currentDy = 0.0
+		newtouch.accX = 0.0
+		newtouch.accY = 0.0
+
+		this.touches.push(newtouch)
+		this.touchPrint()
+	}
+
+	pageTransition.prototype.touchOnMove = function(event) {
+		var touchid = event.originalEvent.changedTouches[0].identifier
+		var touchindex = this.touchFind(touchid)
+
+		if (touchindex == -1) {
+			this.touchOnMove(event)
+			return
+		}
+
+		this.touches[touchindex].touchObject = event.originalEvent.changedTouches[0]
+		this.touches[touchindex].lastX = this.touches[touchindex].currentX
+		this.touches[touchindex].lastY = this.touches[touchindex].currentY
+		this.touches[touchindex].lastT = this.touches[touchindex].currentT
+		this.touches[touchindex].currentX = this.touches[touchindex].touchObject.clientX
+		this.touches[touchindex].currentY = this.touches[touchindex].touchObject.clientY
+		this.touches[touchindex].currentT = event.timeStamp
+		this.touches[touchindex].lastDx = this.touches[touchindex].currentDx
+		this.touches[touchindex].lastDy = this.touches[touchindex].currentDy
+		this.touches[touchindex].currentDx = 1.0 * (this.touches[touchindex].currentX - this.touches[touchindex].lastX) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s
+		this.touches[touchindex].currentDy = 1.0 * (this.touches[touchindex].currentY - this.touches[touchindex].lastY) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s
+		this.touches[touchindex].accX = 1.0 * (this.touches[touchindex].currentDx - this.touches[touchindex].lastDx) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s^2
+		this.touches[touchindex].accY = 1.0 * (this.touches[touchindex].currentDy - this.touches[touchindex].lastDy) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s^2
+	
+		this.touchPrint()
+	}
+
+	pageTransition.prototype.touchOnEnd = function(event) {
+		var touchid = event.originalEvent.changedTouches[0].identifier
+		var touchindex = this.touchFind(touchid)
+		
+		if (touchindex == -1) {
+			return
+		}
+
+		var oldtouch = this.touches.splice(touchindex,1)
+		this.touchPrint()
+		return oldtouch
+	}
+
 	/**
 	 * The function to initialize the touch events, which including setting up the elements and binding events
 	 * @param  {Object} options The options to specialize the elements related for the touch events
@@ -662,18 +807,22 @@
 
 		/** rebind the touch events */
 		$(this.selector).bind("touchstart", this, function(event) {
+			event.data.touchOnStart(event)
 			event.data.touchXcontrollerStartEvent(event)
 			event.data.touchYcontrollerStartEvent(event)
 		})
 		$(this.selector).bind("touchmove", this, function(event) {
+			event.data.touchOnMove(event)
 			event.data.touchXcontrollerMoveEvent(event)
 			event.data.touchYcontrollerMoveEvent(event)
 		})
 		$(this.selector).bind("touchend", this, function(event) {
+			event.data.touchOnEnd(event)
 			event.data.touchXcontrollerEndEvent(event)
 			event.data.touchYcontrollerEndEvent(event)
 		})
 		$(this.selector).bind("touchcancel", this, function(event) {
+			event.data.touchOnEnd(event)
 			event.data.touchXcontrollerEndEvent(event)
 			event.data.touchYcontrollerEndEvent(event)
 		})
