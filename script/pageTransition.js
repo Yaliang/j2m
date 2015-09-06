@@ -729,66 +729,75 @@
 	}
 
 	pageTransition.prototype.touchOnStart = function(event) {
-		var newtouch = {
-			touchObject: event.originalEvent.changedTouches[0]
-		}
-		newtouch.identifier = newtouch.touchObject.identifier
-		newtouch.startX = newtouch.touchObject.clientX
-		newtouch.startY = newtouch.touchObject.clientY
-		newtouch.lastX = newtouch.startX
-		newtouch.lastY = newtouch.startY
-		newtouch.lastT = event.timeStamp
-		newtouch.currentX = newtouch.startX
-		newtouch.currentY = newtouch.startY
-		newtouch.currentT = event.timeStamp
-		newtouch.lastDx = 0.0
-		newtouch.lastDy = 0.0
-		newtouch.currentDx = 0.0
-		newtouch.currentDy = 0.0
-		newtouch.accX = 0.0
-		newtouch.accY = 0.0
+		for (var i = 0; i< event.originalEvent.changedTouches.length; i++) {
+			var newtouch = {
+				touchObject: event.originalEvent.changedTouches[i]
+			}
+			newtouch.identifier = newtouch.touchObject.identifier
+			if (this.touchFind(newtouch.identifier) != -1) {
+				continue 
+			}
 
-		this.touches.push(newtouch)
-		this.touchPrint()
+			newtouch.startX = newtouch.touchObject.clientX
+			newtouch.startY = newtouch.touchObject.clientY
+			newtouch.lastX = newtouch.startX
+			newtouch.lastY = newtouch.startY
+			newtouch.lastT = event.timeStamp
+			newtouch.currentX = newtouch.startX
+			newtouch.currentY = newtouch.startY
+			newtouch.currentT = event.timeStamp
+			newtouch.lastDx = 0.0
+			newtouch.lastDy = 0.0
+			newtouch.currentDx = 0.0
+			newtouch.currentDy = 0.0
+			newtouch.accX = 0.0
+			newtouch.accY = 0.0
+
+			this.touches.push(newtouch)
+			this.touchPrint()
+		}
 	}
 
 	pageTransition.prototype.touchOnMove = function(event) {
-		var touchid = event.originalEvent.changedTouches[0].identifier
-		var touchindex = this.touchFind(touchid)
+		for (var i = 0; i< event.originalEvent.changedTouches.length; i++) {
+			var touchid = event.originalEvent.changedTouches[i].identifier
+			var touchindex = this.touchFind(touchid)
 
-		if (touchindex == -1) {
-			this.touchOnMove(event)
-			return
+			if (touchindex == -1) {
+				continue
+			}
+
+			this.touches[touchindex].touchObject = event.originalEvent.changedTouches[0]
+			this.touches[touchindex].lastX = this.touches[touchindex].currentX
+			this.touches[touchindex].lastY = this.touches[touchindex].currentY
+			this.touches[touchindex].lastT = this.touches[touchindex].currentT
+			this.touches[touchindex].currentX = this.touches[touchindex].touchObject.clientX
+			this.touches[touchindex].currentY = this.touches[touchindex].touchObject.clientY
+			this.touches[touchindex].currentT = event.timeStamp
+			this.touches[touchindex].lastDx = this.touches[touchindex].currentDx
+			this.touches[touchindex].lastDy = this.touches[touchindex].currentDy
+			this.touches[touchindex].currentDx = 1.0 * (this.touches[touchindex].currentX - this.touches[touchindex].lastX) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s
+			this.touches[touchindex].currentDy = 1.0 * (this.touches[touchindex].currentY - this.touches[touchindex].lastY) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s
+			this.touches[touchindex].accX = 1.0 * (this.touches[touchindex].currentDx - this.touches[touchindex].lastDx) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s^2
+			this.touches[touchindex].accY = 1.0 * (this.touches[touchindex].currentDy - this.touches[touchindex].lastDy) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s^2
+		
+			this.touchPrint()
 		}
-
-		this.touches[touchindex].touchObject = event.originalEvent.changedTouches[0]
-		this.touches[touchindex].lastX = this.touches[touchindex].currentX
-		this.touches[touchindex].lastY = this.touches[touchindex].currentY
-		this.touches[touchindex].lastT = this.touches[touchindex].currentT
-		this.touches[touchindex].currentX = this.touches[touchindex].touchObject.clientX
-		this.touches[touchindex].currentY = this.touches[touchindex].touchObject.clientY
-		this.touches[touchindex].currentT = event.timeStamp
-		this.touches[touchindex].lastDx = this.touches[touchindex].currentDx
-		this.touches[touchindex].lastDy = this.touches[touchindex].currentDy
-		this.touches[touchindex].currentDx = 1.0 * (this.touches[touchindex].currentX - this.touches[touchindex].lastX) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s
-		this.touches[touchindex].currentDy = 1.0 * (this.touches[touchindex].currentY - this.touches[touchindex].lastY) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s
-		this.touches[touchindex].accX = 1.0 * (this.touches[touchindex].currentDx - this.touches[touchindex].lastDx) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s^2
-		this.touches[touchindex].accY = 1.0 * (this.touches[touchindex].currentDy - this.touches[touchindex].lastDy) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s^2
-	
-		this.touchPrint()
 	}
 
 	pageTransition.prototype.touchOnEnd = function(event) {
-		var touchid = event.originalEvent.changedTouches[0].identifier
-		var touchindex = this.touchFind(touchid)
-		
-		if (touchindex == -1) {
-			return
-		}
+		for (var i = 0; i< event.originalEvent.changedTouches.length; i++) {
+			var touchid = event.originalEvent.changedTouches[i].identifier
+			var touchindex = this.touchFind(touchid)
+			
+			if (touchindex == -1) {
+				continue
+			}
 
-		var oldtouch = this.touches.splice(touchindex,1)
-		this.touchPrint()
-		return oldtouch
+			var oldtouch = this.touches.splice(touchindex,1)
+			this.touchPrint()
+			// return oldtouch
+		}
 	}
 
 	/**
