@@ -338,14 +338,6 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchXcontrollerStartEvent = function(event) {
-		// if (typeof this.xblock != "undefined" && this.xblock == true) {
-		// 	return
-		// }
-		// console.log(event)
-		this.startX = event.originalEvent.changedTouches[0].clientX
-		this.currentX = this.startX
-		// this.xblock = true
-		this.nowFinger = event.originalEvent.changedTouches[0].identifier
 
 		var fullwidth = $(window).width()
 
@@ -367,15 +359,10 @@
 	 * @param  {Object} event The event object of the touch event
 	 * @return {[type]}       [description]
 	 */
-	pageTransition.prototype.touchXcontrollerMoveEvent = function(event) {
-		// if (parseInt(event.originalEvent.changedTouches[0].identifier) != parseInt(this.nowFinger)) {
-		// 	return 
-		// }
-
-		this.currentX = event.originalEvent.changedTouches[0].clientX
+	pageTransition.prototype.touchXcontrollerMoveEvent = function(event, deltaMoveX) {
 
 		/** if the touch start point is in the left active area, then the animation of transition is updated. Otherwise, stop the animation */
-		if (this.startX < this.leftActive && this.prevElement.length > 0) {
+		if (this.prevElement.length > 0) {
 			/** set the previous element visible */
 			this.prevElement.css("display", "block")
 
@@ -383,21 +370,21 @@
 			$(this.selector).css("background-color",this.backgroundColor)
 
 			/** set the transition animation*/
-			var distance = this.currentX - this.startX
+			var distance = Math.max(parseFloat(this.nowElement.css("left")) + deltaMoveX, 0)
 			var fullwidth = $(window).width()
 			this.nowElement.children(".ui-content").outerWidth(fullwidth)
-			this.nowElement.css("left", Math.max(distance, 0).toString()+"px")
-			this.nowElement.css("width", (fullwidth - Math.max(distance, 0)).toString()+"px")
+			this.nowElement.css("left", distance.toString()+"px")
+			this.nowElement.css("width", (fullwidth - distance).toString()+"px")
 
-			var prevElementScale = this.initScale + (1.0 - this.initScale)*(1.0*this.currentX / fullwidth)
+			var prevElementScale = this.initScale + (1.0 - this.initScale)*(1.0*distance / fullwidth)
 			var scaleString = "scale("+prevElementScale.toString()+","+prevElementScale.toString()+")"
 			this.prevElement.css("transform", scaleString).css("-webkit-transform", scaleString).css("-moz-transform", scaleString)
 			this.prevElement.attr("data-scale", prevElementScale.toString())
 
-			var prevElementShift = (this.initShift + (0 - this.initShift)*(1.0*this.currentX / fullwidth))*fullwidth
+			var prevElementShift = (this.initShift + (0 - this.initShift)*(1.0*distance / fullwidth))*fullwidth
 			this.prevElement.css("left", Math.round(prevElementShift).toString() + "px")
 
-			var prevElementOpac = this.initOpac + (1.0 - this.initOpac)*(1.0*this.currentX / fullwidth)
+			var prevElementOpac = this.initOpac + (1.0 - this.initOpac)*(1.0*distance / fullwidth)
 			this.prevElement.css("opacity", prevElementOpac.toString())
 
 		} else {
@@ -415,8 +402,8 @@
 		// 	return 
 		// }
 
-		if ((( typeof $(event.target).attr("data-nav") != "undefined" && $(event.target).attr("data-nav").toLowerCase() == "back") || this.startX < this.leftActive) && this.prevElement.length > 0) {
-			var distance = this.currentX - this.startX
+		if ((( typeof $(event.target).attr("data-nav") != "undefined" && $(event.target).attr("data-nav").toLowerCase() == "back") || parseFloat(this.nowElement.css("left")) > 0) && this.prevElement.length > 0) {
+			var distance = parseFloat(this.nowElement.css("left"))
 			var fullwidth = $(window).width()
 			/** set the previous element visible */
 			this.prevElement.css("display", "block")
@@ -561,55 +548,7 @@
 		return closestBlocker
 	}
 
-	/**
-	 * The function to handle the start of vertical touch events
-	 * @param  {Object} event the m event of the jquery
-	 * @return {[type]}       [description]
-	 */
-	pageTransition.prototype.touchYcontrollerStartEvent = function(event) {
-		console.log("touch start")
-		if (typeof this.scrollBlock != "undefined" && this.scrollBlock)  {
-			return
-		}
 
-		var closestBlocker = this.touchFindClosestYOverScrollBlocker(event)
-
-		/** set up the scroll functionality */
-		if (closestBlocker[0].parentElement == null && closestBlocker.css("overflowY") != "scroll") {
-			/** ignore the scroll event */
-			this.scrollElement = null
-		} else {
-			/** clear the previous smooth scroll event */
-			if (typeof this.smoothScrollInterval != "undefined" && this.smoothScrollInterval != null) {
-				window.clearInterval(this.smoothScrollInterval)
-				this.smoothScrollInterval = null
-			}
-			if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
-				this.scrollElement.stop()
-				this.scrollElement.css("top", "0")
-				this.scrollElement.css("bottom", "0")
-
-				this.scrollElement.unbind("smooth-scroll-done")
-				this.scrollElement.unbind("update-scroll-bar")
-				this.scrollElement.unbind("over-scroll-recovery")
-			}
-
-			/** initialize the scroll settings */
-			this.scrollElement = closestBlocker
-			this.startY = event.originalEvent.touches[0].clientY
-			this.startYTime = event.timeStamp
-			this.lastY = this.startY
-			this.lastYTime = this.startYTime
-			this.currentY = this.startY
-			this.currentYTime = event.timeStamp
-			this.lastRawSpeedY = 0
-			this.rawSpeedY = 0
-			this.moveRateY = 0
-			this.slowMoveEventsTimeY = 100
-			this.touchUpdateScrollBar()
-			this.touchShowScrollBar()
-		}
-	}
 
 	pageTransition.prototype.touchScroll = function(deltaTop) {
 		var scrollHeight = this.scrollElement[0].scrollHeight
@@ -691,9 +630,49 @@
 			}
 
 		}
+	}
 
-		
+	/**
+	 * The function to handle the start of vertical touch events
+	 * @param  {Object} event the m event of the jquery
+	 * @return {[type]}       [description]
+	 */
 
+	pageTransition.prototype.touchYcontrollerStartEvent = function(event) {
+		console.log("touch start")
+		if (typeof this.scrollBlock != "undefined" && this.scrollBlock)  {
+			return
+		}
+
+		var closestBlocker = this.touchFindClosestYOverScrollBlocker(event)
+
+		/** set up the scroll functionality */
+		if (closestBlocker[0].parentElement == null && closestBlocker.css("overflowY") != "scroll") {
+			/** ignore the scroll event */
+			this.scrollElement = null
+		} else {
+			/** clear the previous smooth scroll event */
+			if (typeof this.smoothScrollInterval != "undefined" && this.smoothScrollInterval != null) {
+				window.clearInterval(this.smoothScrollInterval)
+				this.smoothScrollInterval = null
+			}
+
+			/** clear previous animation inference */
+			if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
+				this.scrollElement.stop()
+				this.scrollElement.css("top", "0")
+				this.scrollElement.css("bottom", "0")
+
+				this.scrollElement.unbind("smooth-scroll-done")
+				this.scrollElement.unbind("update-scroll-bar")
+				this.scrollElement.unbind("over-scroll-recovery")
+			}
+
+			/** initialize the scroll settings */
+			this.scrollElement = closestBlocker
+			this.touchUpdateScrollBar()
+			this.touchShowScrollBar()
+		}
 	}
 
 	/**
@@ -701,32 +680,22 @@
 	 * @param  {Object} event The event of touch move
 	 * @return {[type]}       [description]
 	 */
-	pageTransition.prototype.touchYcontrollerMoveEvent = function(event) {
+	pageTransition.prototype.touchYcontrollerMoveEvent = function(event, deltaMoveY) {
 		console.log("touch move")
 		if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
-			this.lastY = this.currentY
-			this.lastYTime = this.currentYTime
-			this.currentY = event.originalEvent.touches[0].clientY
-			this.currentYTime = event.timeStamp
-			this.moveRateY = (1+Math.round(Math.abs(this.currentY - this.lastY) / 10))
-			if (this.moveRateY > 1) {
+			var moveRateY = (1+Math.round(Math.abs(deltaMoveY) / 10))
+			if (moveRateY > 1) {
 				this.slowMoveEventsTimeY = 0
 			} else {
 				this.slowMoveEventsTimeY += 1
 			}
-			this.lastRawSpeedY = this.rawSpeedY
-			this.rawSpeedY = 1.0 * (this.currentY - this.lastY) / (this.currentYTime - this.lastYTime) * 1000 // px/s
 
-			
-			var deltaTop = - (this.currentY - this.lastY)
+			var deltaTop = - deltaMoveY
 
 			this.touchScroll(deltaTop)
 
 			this.touchUpdateScrollBar()
 			this.touchShowScrollBar()
-
-
-
 		}
 	}
 
@@ -775,9 +744,12 @@
 
 			/** handle smooth scroll */
 			if (this.slowMoveEventsTimeY <= 1) {
-				/** use the greater speed in current two events */
-				if (Math.abs(this.lastRawSpeedY) > Math.abs(this.rawSpeedY))
-					this.rawSpeedY = this.lastRawSpeedY
+				/** use the greater speed in current two events */ 
+				if (Math.abs(this.touches[0].lastDy) > Math.abs(this.touches[0].currentDy)) {
+					this.rawSpeedY = this.touches[0].lastDy
+				} else {
+					this.rawSpeedY = this.touches[0].currentDy
+				}
 
 
 			
@@ -840,6 +812,12 @@
 	}
 
 	pageTransition.prototype.touchOnStart = function(event) {
+
+		if (this.touches.length == 0) {
+			this.touchYcontrollerStartEvent(event)
+			this.touchXid = -1
+		}
+
 		for (var i = 0; i< event.originalEvent.changedTouches.length; i++) {
 			var newtouch = {
 				touchObject: event.originalEvent.changedTouches[i]
@@ -865,11 +843,19 @@
 			newtouch.accY = 0.0
 
 			this.touches.push(newtouch)
+
+			if (newtouch.startX < this.leftActive && this.touchXid == -1) {
+				this.touchXid = this.touches.length - 1
+			}
 			this.touchPrint()
 		}
+
+
 	}
 
 	pageTransition.prototype.touchOnMove = function(event) {
+		var allDeltaMoveY = 0
+
 		for (var i = 0; i< event.originalEvent.changedTouches.length; i++) {
 			var touchid = event.originalEvent.changedTouches[i].identifier
 			var touchindex = this.touchFind(touchid)
@@ -891,9 +877,19 @@
 			this.touches[touchindex].currentDy = 1.0 * (this.touches[touchindex].currentY - this.touches[touchindex].lastY) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s
 			this.touches[touchindex].accX = 1.0 * (this.touches[touchindex].currentDx - this.touches[touchindex].lastDx) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s^2
 			this.touches[touchindex].accY = 1.0 * (this.touches[touchindex].currentDy - this.touches[touchindex].lastDy) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s^2
-		
+			allDeltaMoveY += this.touches[touchindex].currentY - this.touches[touchindex].lastY
+
+			if (touchindex == this.touchXid) {
+				this.touchXcontrollerMoveEvent(event, this.touches[touchindex].currentX - this.touches[touchindex].lastX)
+			}
+
 			this.touchPrint()
 		}
+
+		
+		this.touchYcontrollerMoveEvent(event, 1.0 * allDeltaMoveY / event.originalEvent.changedTouches.length)
+
+
 	}
 
 	pageTransition.prototype.touchOnEnd = function(event) {
@@ -905,10 +901,18 @@
 				continue
 			}
 
+			if (this.touches.length == 1) {
+				this.touchYcontrollerEndEvent(event)
+				this.touchXcontrollerEndEvent(event)
+				this.touchXid = -1
+			}
+
 			var oldtouch = this.touches.splice(touchindex,1)
 			this.touchPrint()
 			// return oldtouch
 		}
+
+
 	}
 
 	/**
@@ -931,23 +935,15 @@
 		/** rebind the touch events */
 		$(this.selector).bind("touchstart", this, function(event) {
 			event.data.touchOnStart(event)
-			event.data.touchXcontrollerStartEvent(event)
-			event.data.touchYcontrollerStartEvent(event)
 		})
 		$(this.selector).bind("touchmove", this, function(event) {
 			event.data.touchOnMove(event)
-			event.data.touchXcontrollerMoveEvent(event)
-			event.data.touchYcontrollerMoveEvent(event)
 		})
 		$(this.selector).bind("touchend", this, function(event) {
 			event.data.touchOnEnd(event)
-			event.data.touchXcontrollerEndEvent(event)
-			event.data.touchYcontrollerEndEvent(event)
 		})
 		$(this.selector).bind("touchcancel", this, function(event) {
 			event.data.touchOnEnd(event)
-			event.data.touchXcontrollerEndEvent(event)
-			event.data.touchYcontrollerEndEvent(event)
 		})
 	}
 
