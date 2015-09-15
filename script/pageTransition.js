@@ -243,18 +243,24 @@
 	pageTransition.prototype.loadPage = function(id) {
 
 		var obj = fackget.get(id)
+		var newPage = null
 
 		this.pageStack.push(obj.pageId)
 
 
 		if ($("#"+id).length == 0) {
-			var newPage = this.createPage(obj)
+			newPage = this.createPage(obj)
+		} else {
+			newPage = $("#"+id)
 		}
+
+		console.log(obj.pageId)
 
 		$( ":mobile-pagecontainer" ).pagecontainer( "change", "#"+obj.pageId, {
 			transition: "none",
 		} );
 
+		console.log("load page done")
 
 		return newPage
 	}
