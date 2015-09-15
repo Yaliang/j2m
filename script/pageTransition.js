@@ -813,6 +813,9 @@
 	 */
 	pageTransition.prototype.initTouch = function(options) {
 
+		/** clear all touch stack */
+		this.touches = []
+
 		/** unbind touch event for x direction and stop animations */
 		this.touchXcontrollerStop()
 
