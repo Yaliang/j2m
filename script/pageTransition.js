@@ -10,7 +10,12 @@
 	 * The second part handle the touch events
 	 */
 	
-	function pageTransition(selector, options) {
+	function pageTransition(options) {
+
+		/** disable the native touch move functionality */
+		window.addEventListener("touchmove", function(event) {
+            event.preventDefault()
+        }, false)
 
 		/**
 		 * a stack of the touches
@@ -32,7 +37,41 @@
 		 */
 		this.initPage = $("#init").clone(true)
 		$("#init").remove()
-		// console.log("init remove called")
+
+		/**
+		 * the ajax-based loader to get the content of pages
+		 * @type {Object}
+		 */
+		this.ajaxloader = options.ajaxloader || {
+            num: 1,
+            get: function(id) {
+                // console.log("called fackget")
+                var obj = {}
+                // var randstr = Math.random().toString().substr(2)
+                var randstr = this.num.toString()
+                if (typeof id != "undefined" && id != null) {
+                    randstr = id
+                }
+                this.num += 1
+                var dd = Math.round(Math.random()*5000)
+                var strdd = ""
+                for (var i=0; i< dd; i++) {
+                    strdd += Math.round(Math.random()*10).toString()
+                }
+                obj.pageid = randstr
+                obj.pageId = randstr
+                obj.header = "<h1>Title</h1><a href='#' data-href='' data-nav='back'>Back</a>"
+                obj.main = "<a href='#' data-href='"+this.num.toString()+"' data-transition='none'>To "+this.num.toString()+"</a><p style='word-break: break-all;'>"+strdd+"</p>"
+                obj.content = obj.main
+                obj.contentAttr = {
+                    "overscroll": "true"
+                }
+                obj.title = randstr
+                obj.footer = "<h1>Footer</h1>"
+                // console.log("fackget return")
+                return obj
+            }
+        }
 
 		/**
 		 * a stack of the loaded pages
@@ -173,6 +212,7 @@
 		var newPage = this.initPage.clone(true)
 		newPage.attr("id", obj.pageId)
 		newPage.attr("data-url", obj.pageUrl)
+		newPage.attr("data-title", obj.title)
 		newPage.children(".ctrl-page-header").attr("id",obj.pageId+"-header").html(obj.header)
 		newPage.children(".ctrl-page-content").attr("id",obj.pageId+"-content").html(obj.content)
 		newPage.children(".ctrl-page-footer").attr("id",obj.pageId+"-footer").html(obj.footer)
@@ -242,7 +282,7 @@
 	 */
 	pageTransition.prototype.loadPage = function(id) {
 
-		var obj = fackget.get(id)
+		var obj = this.ajaxloader.get(id)
 		var newPage = null
 
 		this.pageStack.push(obj.pageId)
@@ -254,13 +294,9 @@
 			newPage = $("#"+id)
 		}
 
-		console.log(obj.pageId)
-
 		$( ":mobile-pagecontainer" ).pagecontainer( "change", "#"+obj.pageId, {
 			transition: "none",
 		} );
-
-		console.log("load page done")
 
 		return newPage
 	}
@@ -549,7 +585,11 @@
 	}
 
 
-
+	/**
+	 * the function to handle a complete scroll functionality in oder to get a rebuilt over-scroll
+	 * @param  {Number} deltaTop The difference on y direction
+	 * @return {[type]}          [description]
+	 */
 	pageTransition.prototype.touchScroll = function(deltaTop) {
 		var scrollHeight = this.scrollElement[0].scrollHeight
 		var clippedHeight = this.scrollElement.outerHeight()
@@ -562,6 +602,7 @@
 		var displayRate = 1.0 / (1.0 + 25.0 * Math.abs(currentCssTop) / clippedHeight)
 		var loopnum = 0
 
+		/** execute scroll-able methods in a designed priority*/
 		while (Math.abs(deltaTop) > 0.001 && loopnum < 10) {
 			loopnum += 1
 			scrollToTop = this.scrollElement.scrollTop()
@@ -571,63 +612,62 @@
 			if (deltaTop < 0 && currentCssTop < 0) {
 				// case: touch move down, there has bottom over scroll, recovery this part first
 				// currentCssTop is negative
-				if (loopnum > 1)
-					console.log("touch move down, case 1")
+				// if (loopnum > 1)
+					// console.log("touch move down, case 1")
 				newCssTop = currentCssTop + Math.min(- deltaTop, - currentCssTop)
 				deltaTop = deltaTop + (newCssTop - currentCssTop)
 				this.scrollElement.css("top", newCssTop.toString() + "px")
 			} else if (deltaTop < 0 && scrollToTop > 0) {
 				// case: touch move down, there has some space to scroll up
-				if (loopnum > 1)
-					console.log("touch move down, case 2")
+				// if (loopnum > 1)
+					// console.log("touch move down, case 2")
 				newScrollToTop = scrollToTop + Math.max(deltaTop, - scrollToTop)
 				this.scrollElement.scrollTop(Math.round(newScrollToTop))
 				deltaTop = deltaTop - (newScrollToTop - scrollToTop)
 			} else if (deltaTop < 0 && scrollToTop == 0 && overscrollable == true) {
 				// case: touch move down, the scroll element has scroll to top and it is over-scroll-able
-				if (loopnum > 1)
-					console.log("touch move down, case 3")
+				// if (loopnum > 1)
+					// console.log("touch move down, case 3")
 				newCssTop = currentCssTop - displayRate * deltaTop
 				deltaTop = 0
 				this.scrollElement.css("top", newCssTop.toString()+ "px")
 			} else if (deltaTop < 0 && scrollToTop == 0 && overscrollable == false) {
 				// case: touch move down, the scroll element has scroll to top and it is over-scroll-disable
-				if (loopnum > 1)
-					console.log("touch move down, case 4")
+				// if (loopnum > 1)
+					// console.log("touch move down, case 4")
 				deltaTop = 0
 			} else if (deltaTop > 0 && currentCssTop > 0) {
 				// case: touch move up, there has top over scroll, recovery this part first
 				// currentCssTop is positive
-				if (loopnum > 1)
-					console.log("touch move up, case 5, currentCssTop: %d, deltaTop: %d", currentCssTop, deltaTop)
+				// if (loopnum > 1)
+					// console.log("touch move up, case 5, currentCssTop: %d, deltaTop: %d", currentCssTop, deltaTop)
 				newCssTop = currentCssTop + Math.max(- deltaTop, - currentCssTop)
 				deltaTop = deltaTop + (newCssTop - currentCssTop)
 				this.scrollElement.css("top", newCssTop.toString() + "px")
 			} else if (deltaTop > 0 && scrollToBottom > 0) {
 				// case: touch move up, there has some space to scroll down
-				if (loopnum > 1)
-					console.log("touch move up, case 6")
+				// if (loopnum > 1)
+					// console.log("touch move up, case 6")
 				newScrollToBottom = scrollToBottom + Math.max(- deltaTop, -scrollToBottom)
 				newScrollToTop = scrollHeight - clippedHeight - newScrollToBottom
 				this.scrollElement.scrollTop(Math.round(newScrollToTop))
 				deltaTop = deltaTop - (newScrollToTop - scrollToTop)
 			} else if (deltaTop > 0 && scrollToBottom == 0 && overscrollable == true) {
-				if (loopnum > 1)
-					console.log("touch move up, case 7")
+				// if (loopnum > 1)
+					// console.log("touch move up, case 7")
 				newCssTop = currentCssTop - displayRate * deltaTop
 				deltaTop = 0
 				this.scrollElement.css("top", newCssTop.toString()+"px")
 			} else if (deltaTop > 0 && scrollToBottom == 0 && overscrollable == false) {
-				if (loopnum > 1)
-					console.log("touch move up, case 8")
+				// if (loopnum > 1)
+					// console.log("touch move up, case 8")
 				deltaTop = 0
 			}
 
-			if (loopnum > 1) {
-				console.log(loopnum)
-				console.log(deltaTop)
-
-			}
+			// if (loopnum > 1) {
+				// console.log(loopnum)
+				// console.log(deltaTop)
+			// }
 
 		}
 	}
@@ -637,9 +677,8 @@
 	 * @param  {Object} event the m event of the jquery
 	 * @return {[type]}       [description]
 	 */
-
 	pageTransition.prototype.touchYcontrollerStartEvent = function(event) {
-		console.log("touch start")
+		// console.log("touch start")
 		if (typeof this.scrollBlock != "undefined" && this.scrollBlock)  {
 			return
 		}
@@ -680,7 +719,7 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchYcontrollerMoveEvent = function(event, deltaMoveY) {
-		console.log("touch move")
+		// console.log("touch move")
 		if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
 			var moveRateY = (1+Math.round(Math.abs(deltaMoveY) / 10))
 			if (moveRateY > 1) {
@@ -704,7 +743,7 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchYcontrollerEndEvent = function(event) {
-		console.log("touch end")
+		// console.log("touch end")
 		if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
 
 			/** bind the events for smooth scroll */
@@ -765,16 +804,15 @@
 
 					var endSpeed = Math.max(0, (1 + acc)) * initSpeed
 					var avgSpeed = (initSpeed + endSpeed) / 2.0
-					var deltaTop = avgSpeed * deltatime
+					var deltaTop = - avgSpeed * deltatime
 					
-					console.log(deltaTop)
-					a.touchScroll(-deltaTop)
+					a.touchScroll(deltaTop)
 					a.rawSpeedY = endSpeed
 
 					a.touchUpdateScrollBar()
 					a.touchShowScrollBar()
 					if (Math.abs(deltaTop) < 0.05) {
-						console.log("stop called")
+						// console.log("stop called")
 						a.scrollBlock = true
 						a.scrollElement.trigger("over-scroll-recovery")
 					}
@@ -790,7 +828,13 @@
 		}
 	}
 
+	/**
+	 * the function to find the index of a touch object in the this.touches list
+	 * @param  {number} touchid The identifier of a touch
+	 * @return {number}         The index number of touch
+	 */
 	pageTransition.prototype.touchFind = function(touchid) {
+		/** @type {Number} the finally return result, if nothing matched, return -1 */
 		var touchindex = -1
 		for (var i = 0; i< this.touches.length; i++) {
 			if (this.touches[i].identifier == touchid) {
@@ -802,6 +846,10 @@
 		return touchindex
 	}
 
+	/**
+	 * the function which print the touches information
+	 * @return {[type]} [description]
+	 */
 	pageTransition.prototype.touchPrint = function() {
 		var textmsg = "touches number: "+ this.touches.length.toString() + "</br>"
 		for (var i = 0; i<this.touches.length; i++) {
@@ -810,22 +858,34 @@
 		this.nowElement.children(".ctrl-page-content").children("p").html(textmsg)
 	}
 
+	/**
+	 * the function which handle all touch start event, and initialize the x and y controller 
+	 * @param  {Object} event The event object on touch start
+	 * @return {[type]}       [description]
+	 */
 	pageTransition.prototype.touchOnStart = function(event) {
 
+		/** when first finger touch the screen, initialize the y controller and set x to non-exist id */
 		if (this.touches.length == 0) {
+			this.touchXcontrollerStartEvent(event)
 			this.touchYcontrollerStartEvent(event)
 			this.touchXid = -1
 		}
 
+		/** for each touch, initialize the dynamic parameter and push to list */
 		for (var i = 0; i< event.originalEvent.changedTouches.length; i++) {
+			/** @type {Object} the new touch object */
 			var newtouch = {
 				touchObject: event.originalEvent.changedTouches[i]
 			}
 			newtouch.identifier = newtouch.touchObject.identifier
+
+			/** check if this identifier is existed in list */
 			if (this.touchFind(newtouch.identifier) != -1) {
 				continue 
 			}
 
+			/** set the dynamic data */
 			newtouch.startX = newtouch.touchObject.clientX
 			newtouch.startY = newtouch.touchObject.clientY
 			newtouch.lastX = newtouch.startX
@@ -841,21 +901,28 @@
 			newtouch.accX = 0.0
 			newtouch.accY = 0.0
 
+			/** push into touches list */
 			this.touches.push(newtouch)
 
+			/** if current touch is the first touch in the leftActive region, bind it to initialize the x controller */
 			if (newtouch.startX < this.leftActive && this.touchXid == -1) {
 				this.touchXid = this.touches.length - 1
 			}
-			this.touchPrint()
 		}
-
-
 	}
 
+	/**
+	 * the function to handle all touch move events and call for x and y controller in certain cases
+	 * @param  {Object} event The event of touch move
+	 * @return {[type]}       [description]
+	 */
 	pageTransition.prototype.touchOnMove = function(event) {
 		var allDeltaMoveY = 0
 
+		/** for each touches, calculate the dynamic data */
 		for (var i = 0; i< event.originalEvent.changedTouches.length; i++) {
+
+			/** find the touch index first */
 			var touchid = event.originalEvent.changedTouches[i].identifier
 			var touchindex = this.touchFind(touchid)
 
@@ -863,6 +930,7 @@
 				continue
 			}
 
+			/** update the dynamic data */
 			this.touches[touchindex].touchObject = event.originalEvent.changedTouches[0]
 			this.touches[touchindex].lastX = this.touches[touchindex].currentX
 			this.touches[touchindex].lastY = this.touches[touchindex].currentY
@@ -876,21 +944,27 @@
 			this.touches[touchindex].currentDy = 1.0 * (this.touches[touchindex].currentY - this.touches[touchindex].lastY) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s
 			this.touches[touchindex].accX = 1.0 * (this.touches[touchindex].currentDx - this.touches[touchindex].lastDx) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s^2
 			this.touches[touchindex].accY = 1.0 * (this.touches[touchindex].currentDy - this.touches[touchindex].lastDy) / (this.touches[touchindex].currentT - this.touches[touchindex].lastT) * 1000 // px/s^2
+			
 			allDeltaMoveY += this.touches[touchindex].currentY - this.touches[touchindex].lastY
 
+			/** if the touch object is the one binded to x controller, update the x controller */
 			if (touchindex == this.touchXid) {
 				this.touchXcontrollerMoveEvent(event, this.touches[touchindex].currentX - this.touches[touchindex].lastX)
 			}
 
-			this.touchPrint()
 		}
 
-		
+		/** update the y controller */
 		this.touchYcontrollerMoveEvent(event, 1.0 * allDeltaMoveY / event.originalEvent.changedTouches.length)
 
 
 	}
 
+	/**
+	 * the function which handle all touch end events and call the x and y controller in proper way
+	 * @param  {Object} event The event of the touch end event
+	 * @return {[type]}       [description]
+	 */
 	pageTransition.prototype.touchOnEnd = function(event) {
 		for (var i = 0; i< event.originalEvent.changedTouches.length; i++) {
 			var touchid = event.originalEvent.changedTouches[i].identifier
@@ -900,15 +974,15 @@
 				continue
 			}
 
+			/** if this is the last touch object in the list, we need to stop both x and y controller */
 			if (this.touches.length == 1) {
-				this.touchYcontrollerEndEvent(event)
 				this.touchXcontrollerEndEvent(event)
+				this.touchYcontrollerEndEvent(event)
 				this.touchXid = -1
 			}
 
+			/** splice the old touch from touches list */
 			var oldtouch = this.touches.splice(touchindex,1)
-			this.touchPrint()
-			// return oldtouch
 		}
 
 
@@ -933,15 +1007,19 @@
 
 		/** rebind the touch events */
 		$(this.selector).bind("touchstart", this, function(event) {
+			event.preventDefault()
 			event.data.touchOnStart(event)
 		})
 		$(this.selector).bind("touchmove", this, function(event) {
+			event.preventDefault()
 			event.data.touchOnMove(event)
 		})
 		$(this.selector).bind("touchend", this, function(event) {
+			event.preventDefault()
 			event.data.touchOnEnd(event)
 		})
 		$(this.selector).bind("touchcancel", this, function(event) {
+			event.preventDefault()
 			event.data.touchOnEnd(event)
 		})
 	}
@@ -952,8 +1030,8 @@
 	 * @param  {Object} options  The setup for the transition
 	 * @return {Instant/Object}  Created instant of the pageTransition module
 	 */
-	pageTransition.init = function(selector, options) {
-		return new pageTransition(selector, options)
+	pageTransition.init = function(options) {
+		return new pageTransition(options)
 	}
 
 	window.pageTransition = pageTransition

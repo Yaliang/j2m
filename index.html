@@ -22,13 +22,13 @@
 
     <link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css" />
     <link rel="stylesheet" href="./index.css" />
-    <script src="http://libs.baidu.com/jquery/1.11.3/jquery.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
     <script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
     <script src="./script/fastclick-master/lib/fastclick.js"></script>
     <script src="./script/pageTransition.js"></script>
 </head>
 
-<body style="-webkit-backface-visibility:hidden">
+<body>
     <div id="init" data-role="page" data-title="" data-transition="none">
         <div class="ctrl-page-header banner-front" id="init-header" data-role="header"></div><!-- header -->
         <div class="ctrl-page-content ui-content" id="init-content" role="main"></div><!-- /content -->
@@ -38,53 +38,7 @@
     <script type="text/javascript">
         window.FastClick.attach(document.body)
 
-        window.addEventListener('popstate', function(event){
-            console.log(event.state)
-            window.history.replaceState(event.state, event.state.title, event.state.url)
-        }, false)
-
-        window.addEventListener("touchmove", function(event) {
-            event.preventDefault()
-        }, false)
-
-
-        fackget = {
-            num: 1,
-            get: function(id) {
-                console.log("called fackget")
-                var obj = {}
-                // var randstr = Math.random().toString().substr(2)
-                var randstr = this.num.toString()
-                if (typeof id != "undefined" && id != null) {
-                    randstr = id
-                }
-                this.num += 1
-                var dd = Math.round(Math.random()*5000)
-                var strdd = ""
-                for (var i=0; i< dd; i++) {
-                    strdd += Math.round(Math.random()*10).toString()
-                }
-                obj.pageid = randstr
-                obj.pageId = randstr
-                obj.header = "<h1>Title</h1><a href='#' data-href='' data-nav='back'>Back</a>"
-                obj.main = "<a href='#' data-href='"+this.num.toString()+"' data-transition='none'>To "+this.num.toString()+"</a><p style='word-break: break-all;'>"+strdd+"</p>"
-                obj.content = obj.main
-                obj.contentAttr = {
-                    "overscroll": "true"
-                }
-                obj.footer = "<h1>Footer</h1>"
-                console.log("fackget return")
-                return obj
-            }
-        }
-
-        window.onhashchange = function() {
-            console.log("hash changed")
-        }
-
-        var pt = pageTransition.init("body",{
-            initScale: 1,
-        })
+        var pt = pageTransition.init()
 
         
         
