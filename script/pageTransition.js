@@ -92,7 +92,7 @@
 		 * The damping of the smooth scroll
 		 * @type {Number}
 		 */
-		this.scrollDamping = options.scrollDamping || 8
+		this.scrollDamping = options.scrollDamping || 6
 
 		/**
 		 * Call the loadPage function to load the target file
@@ -642,7 +642,7 @@
 				if (loopnum > 1)
 					console.log("touch move down, case 2")
 				newScrollToTop = scrollToTop + Math.max(deltaTop, - scrollToTop)
-				this.scrollElement.scrollTop(newScrollToTop)
+				this.scrollElement.scrollTop(Math.round(newScrollToTop))
 				deltaTop = deltaTop - (newScrollToTop - scrollToTop)
 			} else if (deltaTop < 0 && scrollToTop == 0 && overscrollable == true) {
 				// case: touch move down, the scroll element has scroll to top and it is over-scroll-able
@@ -670,7 +670,7 @@
 					console.log("touch move up, case 6")
 				newScrollToBottom = scrollToBottom + Math.max(- deltaTop, -scrollToBottom)
 				newScrollToTop = scrollHeight - clippedHeight - newScrollToBottom
-				this.scrollElement.scrollTop(newScrollToTop)
+				this.scrollElement.scrollTop(Math.round(newScrollToTop))
 				deltaTop = deltaTop - (newScrollToTop - scrollToTop)
 			} else if (deltaTop > 0 && scrollToBottom == 0 && overscrollable == true) {
 				if (loopnum > 1)
@@ -796,7 +796,7 @@
 					var avgSpeed = (initSpeed + endSpeed) / 2.0
 					var deltaTop = avgSpeed * deltatime
 					
-					console.log(endSpeed)
+					console.log(deltaTop)
 					a.touchScroll(-deltaTop)
 					a.rawSpeedY = endSpeed
 
