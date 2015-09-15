@@ -659,9 +659,8 @@
 
 			/** clear previous animation inference */
 			if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
-				this.scrollElement.stop()
-				this.scrollElement.css("top", "0")
-				this.scrollElement.css("bottom", "0")
+				// this.scrollElement.stop()
+				// this.scrollElement.css("top", "0")
 
 				this.scrollElement.unbind("smooth-scroll-done")
 				this.scrollElement.unbind("update-scroll-bar")
