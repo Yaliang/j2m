@@ -807,7 +807,7 @@
 		for (var i = 0; i<this.touches.length; i++) {
 			textmsg += this.touches[i].identifier.toString() + "</br>"
 		}
-		// this.nowElement.children(".ctrl-page-content").children("p").html(textmsg)
+		this.nowElement.children(".ctrl-page-content").children("p").html(textmsg)
 	}
 
 	pageTransition.prototype.touchOnStart = function(event) {
