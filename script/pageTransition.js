@@ -347,6 +347,19 @@
 		// this.xblock = true
 		this.nowFinger = event.originalEvent.changedTouches[0].identifier
 
+		var fullwidth = $(window).width()
+
+		var prevElementScale = this.initScale
+		var scaleString = "scale("+prevElementScale.toString()+","+prevElementScale.toString()+")"
+		this.prevElement.css("transform", scaleString).css("-webkit-transform", scaleString).css("-moz-transform", scaleString)
+		this.prevElement.attr("data-scale", prevElementScale.toString())
+
+		var prevElementShift = this.initShift * fullwidth
+		this.prevElement.css("left", Math.round(prevElementShift).toString() + "px")
+
+		var prevElementOpac = this.initOpac
+		this.prevElement.css("opacity", prevElementOpac.toString())
+
 	}
 
 	/**
@@ -494,9 +507,13 @@
 			var scrollHeight = this.scrollElement[0].scrollHeight
 			var clippedHeight = this.scrollElement.outerHeight()
 			var scrollTop = this.scrollElement.scrollTop()
-			var offsetTop = this.scrollElement.offset().top + Math.round(1.0*scrollTop/scrollHeight * clippedHeight) - parseFloat(this.scrollElement.css("top"))
-			// console.log(1.0- (parseFloat(this.scrollElement.css("top"))*8.0 / clippedHeight))
-			var barHeight = Math.max(10,Math.round(1.0*clippedHeight*clippedHeight/scrollHeight * (1.0- (parseFloat(this.scrollElement.css("top"))*8.0 / clippedHeight))))
+			var barHeight = Math.max(10, Math.round(1.0*clippedHeight*clippedHeight/scrollHeight * (1.0- (Math.abs(parseFloat(this.scrollElement.css("top")))*8.0 / clippedHeight))))
+			var offset = this.scrollElement.offset().top
+			if (parseFloat(this.scrollElement.css("top")) >= 0)
+				offsetTop = this.scrollElement.offset().top + Math.round(1.0*scrollTop/scrollHeight * clippedHeight) - parseFloat(this.scrollElement.css("top"))
+			else 
+				offsetTop = this.scrollElement.offset().top + clippedHeight - barHeight - parseFloat(this.scrollElement.css("top"))
+			
 			this.scrollElement.prev().height(barHeight)
 			this.scrollElement.prev().offset({top: offsetTop, right: 10})
 		}
@@ -550,6 +567,11 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchYcontrollerStartEvent = function(event) {
+		console.log("touch start")
+		if (typeof this.scrollBlock != "undefined" && this.scrollBlock)  {
+			return
+		}
+
 		var closestBlocker = this.touchFindClosestYOverScrollBlocker(event)
 
 		/** set up the scroll functionality */
@@ -558,17 +580,22 @@
 			this.scrollElement = null
 		} else {
 			/** clear the previous smooth scroll event */
-			if (typeof this.smoothScrollInterval != "undefined") {
+			if (typeof this.smoothScrollInterval != "undefined" && this.smoothScrollInterval != null) {
 				window.clearInterval(this.smoothScrollInterval)
+				this.smoothScrollInterval = null
 			}
 			if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
 				this.scrollElement.stop()
-				this.scrollElement.css("top","0")
+				this.scrollElement.css("top", "0")
+				this.scrollElement.css("bottom", "0")
+
+				this.scrollElement.unbind("smooth-scroll-done")
+				this.scrollElement.unbind("update-scroll-bar")
+				this.scrollElement.unbind("over-scroll-recovery")
 			}
 
 			/** initialize the scroll settings */
 			this.scrollElement = closestBlocker
-			this.scrollElementTop = this.scrollElement.scrollTop()
 			this.startY = event.originalEvent.touches[0].clientY
 			this.startYTime = event.timeStamp
 			this.lastY = this.startY
@@ -584,41 +611,120 @@
 		}
 	}
 
+	pageTransition.prototype.touchScroll = function(deltaTop) {
+		var scrollHeight = this.scrollElement[0].scrollHeight
+		var clippedHeight = this.scrollElement.outerHeight()
+		var scrollToTop = this.scrollElement.scrollTop()
+		var scrollToBottom = scrollHeight - clippedHeight - scrollToTop
+		var currentCssTop = parseFloat(this.scrollElement.css("top"))
+		var newScrollToTop = scrollToTop
+		var newScrollToBottom = scrollToBottom
+		var overscrollable = this.scrollElement.attr("data-overscroll").toLowerCase() == "true"
+		var displayRate = 1.0 / (1.0 + 25.0 * Math.abs(currentCssTop) / clippedHeight)
+		var loopnum = 0
+
+		while (Math.abs(deltaTop) > 0.001 && loopnum < 10) {
+			loopnum += 1
+			scrollToTop = this.scrollElement.scrollTop()
+			scrollToBottom = scrollHeight - clippedHeight - scrollToTop
+			currentCssTop = parseFloat(this.scrollElement.css("top"))
+			displayRate = 1.0 / (1.0 + 25.0 * Math.abs(currentCssTop) / clippedHeight)
+			if (deltaTop < 0 && currentCssTop < 0) {
+				// case: touch move down, there has bottom over scroll, recovery this part first
+				// currentCssTop is negative
+				if (loopnum > 1)
+					console.log("touch move down, case 1")
+				newCssTop = currentCssTop + Math.min(- deltaTop, - currentCssTop)
+				deltaTop = deltaTop + (newCssTop - currentCssTop)
+				this.scrollElement.css("top", newCssTop.toString() + "px")
+			} else if (deltaTop < 0 && scrollToTop > 0) {
+				// case: touch move down, there has some space to scroll up
+				if (loopnum > 1)
+					console.log("touch move down, case 2")
+				newScrollToTop = scrollToTop + Math.max(deltaTop, - scrollToTop)
+				this.scrollElement.scrollTop(newScrollToTop)
+				deltaTop = deltaTop - (newScrollToTop - scrollToTop)
+			} else if (deltaTop < 0 && scrollToTop == 0 && overscrollable == true) {
+				// case: touch move down, the scroll element has scroll to top and it is over-scroll-able
+				if (loopnum > 1)
+					console.log("touch move down, case 3")
+				newCssTop = currentCssTop - displayRate * deltaTop
+				deltaTop = 0
+				this.scrollElement.css("top", newCssTop.toString()+ "px")
+			} else if (deltaTop < 0 && scrollToTop == 0 && overscrollable == false) {
+				// case: touch move down, the scroll element has scroll to top and it is over-scroll-disable
+				if (loopnum > 1)
+					console.log("touch move down, case 4")
+				deltaTop = 0
+			} else if (deltaTop > 0 && currentCssTop > 0) {
+				// case: touch move up, there has top over scroll, recovery this part first
+				// currentCssTop is positive
+				if (loopnum > 1)
+					console.log("touch move up, case 5, currentCssTop: %d, deltaTop: %d", currentCssTop, deltaTop)
+				newCssTop = currentCssTop + Math.max(- deltaTop, - currentCssTop)
+				deltaTop = deltaTop + (newCssTop - currentCssTop)
+				this.scrollElement.css("top", newCssTop.toString() + "px")
+			} else if (deltaTop > 0 && scrollToBottom > 0) {
+				// case: touch move up, there has some space to scroll down
+				if (loopnum > 1)
+					console.log("touch move up, case 6")
+				newScrollToBottom = scrollToBottom + Math.max(- deltaTop, -scrollToBottom)
+				newScrollToTop = scrollHeight - clippedHeight - newScrollToBottom
+				this.scrollElement.scrollTop(newScrollToTop)
+				deltaTop = deltaTop - (newScrollToTop - scrollToTop)
+			} else if (deltaTop > 0 && scrollToBottom == 0 && overscrollable == true) {
+				if (loopnum > 1)
+					console.log("touch move up, case 7")
+				newCssTop = currentCssTop - displayRate * deltaTop
+				deltaTop = 0
+				this.scrollElement.css("top", newCssTop.toString()+"px")
+			} else if (deltaTop > 0 && scrollToBottom == 0 && overscrollable == false) {
+				if (loopnum > 1)
+					console.log("touch move up, case 8")
+				deltaTop = 0
+			}
+
+			if (loopnum > 1) {
+				console.log(loopnum)
+				console.log(deltaTop)
+
+			}
+
+		}
+
+		
+
+	}
+
 	/**
 	 * the function to handle the move event of the scroll functionality
 	 * @param  {Object} event The event of touch move
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchYcontrollerMoveEvent = function(event) {
+		console.log("touch move")
 		if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
 			this.lastY = this.currentY
 			this.lastYTime = this.currentYTime
 			this.currentY = event.originalEvent.touches[0].clientY
 			this.currentYTime = event.timeStamp
 			this.moveRateY = (1+Math.round(Math.abs(this.currentY - this.lastY) / 10))
-			this.lastRawSpeedY = this.rawSpeedY
-			this.rawSpeedY = 1.0 * (this.currentY - this.lastY) / (this.currentYTime - this.lastYTime) * 1000 // px/s
 			if (this.moveRateY > 1) {
 				this.slowMoveEventsTimeY = 0
 			} else {
 				this.slowMoveEventsTimeY += 1
 			}
-			var newTop = this.scrollElementTop - (this.currentY - this.lastY)
-			this.scrollElement.scrollTop(Math.round(newTop))
-			this.scrollElementTop = newTop
-			if ( this.scrollElement.scrollTop() == 0 && this.scrollElement.attr("data-overscroll") == "true") {
-				/** handle over scroll */
-				var currentTop = parseFloat(this.scrollElement.css("top"))
-				var currentHeight = this.scrollElement.outerHeight()
-				var currentTopRate = 1.0* currentTop / currentHeight
-				var topYdelta = 1.0*(this.currentY - this.lastY)/(1.0+25.0*currentTopRate)
-				var newTopY = topYdelta+currentTop
-				this.scrollElement.css("top",(newTopY).toString()+"px")
-			} else {
-				/** search the up level scroll element */
-			}
+			this.lastRawSpeedY = this.rawSpeedY
+			this.rawSpeedY = 1.0 * (this.currentY - this.lastY) / (this.currentYTime - this.lastYTime) * 1000 // px/s
+
+			
+			var deltaTop = - (this.currentY - this.lastY)
+
+			this.touchScroll(deltaTop)
+
 			this.touchUpdateScrollBar()
 			this.touchShowScrollBar()
+
 
 
 		}
@@ -630,6 +736,7 @@
 	 * @return {[type]}       [description]
 	 */
 	pageTransition.prototype.touchYcontrollerEndEvent = function(event) {
+		console.log("touch end")
 		if (typeof this.scrollElement != "undefined" && this.scrollElement != null && this.scrollElement.length > 0) {
 
 			/** bind the events for smooth scroll */
@@ -637,6 +744,7 @@
 				event.data.touchHideScrollBar()
 				event.data.scrollElement.unbind("smooth-scroll-done")
 				event.data.scrollElement.unbind("update-scroll-bar")
+				event.data.scrollBlock = false
 			})
 
 			this.scrollElement.bind("update-scroll-bar", this, function(event) {
@@ -645,8 +753,9 @@
 
 			/** bind the event to handle the over scroll animation */
 			this.scrollElement.bind("over-scroll-recovery", this, function(event) {
-				if (typeof event.data.smoothScrollInterval != "undefined") {
+				if (typeof event.data.smoothScrollInterval != "undefined" && event.data.smoothScrollInterval != null) {
 					window.clearInterval(event.data.smoothScrollInterval)
+					event.data.smoothScrollInterval = null
 				}
 				event.data.scrollElement.animate({
 					"top":"0"
@@ -656,10 +765,12 @@
 						$(this).trigger("update-scroll-bar")
 					},
 					complete: function() {
-						$(this).unbind("over-scroll-recovery")
 						$(this).trigger("smooth-scroll-done")
 					}
 				})
+
+				$(this).unbind("over-scroll-recovery")
+
 			})
 
 			/** handle smooth scroll */
@@ -676,30 +787,24 @@
 					/** use damping model to build a smooth scroll animation */
 					var deltatime = 3.0/1000
 					var initSpeed = 1.0*a.rawSpeedY
-					var endSpeed = initSpeed - 0.5*a.scrollDamping*initSpeed*deltatime
+					var acc = - a.scrollDamping * deltatime
+					if (Math.abs(parseFloat(a.scrollElement.css("top"))) > 0.001) {
+						acc -= 0.25 * parseFloat(a.scrollElement.css("top")) / initSpeed
+					}
+
+					var endSpeed = Math.max(0, (1 + acc)) * initSpeed
 					var avgSpeed = (initSpeed + endSpeed) / 2.0
 					var deltaTop = avgSpeed * deltatime
-					var newTop = a.scrollElementTop - deltaTop
-					a.scrollElement.scrollTop(Math.round(newTop))
-					a.scrollElementTop = newTop
+					
+					console.log(endSpeed)
+					a.touchScroll(-deltaTop)
 					a.rawSpeedY = endSpeed
-					if ( a.scrollElement.scrollTop() == 0 && a.scrollElement.attr("data-overscroll") == "true") {
-						/** handle over scroll */
-						var currentTop = parseFloat(a.scrollElement.css("top"))
-						var currentHeight = a.scrollElement.outerHeight()
-						var currentTopRate = 1.0* currentTop / currentHeight
-						endSpeed = initSpeed - 0.5*a.scrollDamping*initSpeed*deltatime*(1.0+150.0*currentTopRate)
-						avgSpeed = (initSpeed + endSpeed) / 2.0
-						deltaTop = avgSpeed * deltatime
-						var newTopY = deltaTop+currentTop
-						a.scrollElement.css("top",(newTopY).toString()+"px")
-						a.rawSpeedY = endSpeed
-					} else {
-						/** search the up level scroll element */
-					}
+
 					a.touchUpdateScrollBar()
 					a.touchShowScrollBar()
 					if (Math.abs(deltaTop) < 0.05) {
+						console.log("stop called")
+						a.scrollBlock = true
 						a.scrollElement.trigger("over-scroll-recovery")
 					}
 
@@ -731,7 +836,7 @@
 		for (var i = 0; i<this.touches.length; i++) {
 			textmsg += this.touches[i].identifier.toString() + "</br>"
 		}
-		this.nowElement.children(".ctrl-page-content").children("p").html(textmsg)
+		// this.nowElement.children(".ctrl-page-content").children("p").html(textmsg)
 	}
 
 	pageTransition.prototype.touchOnStart = function(event) {
