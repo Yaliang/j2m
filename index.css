@@ -93,3 +93,8 @@ textarea {
     z-index: 100;
     display: none;
 }
+
+
+.banner-front {
+    z-index: 99;
+}
