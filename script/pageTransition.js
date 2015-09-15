@@ -789,7 +789,7 @@
 					var initSpeed = 1.0*a.rawSpeedY
 					var acc = - a.scrollDamping * deltatime
 					if (Math.abs(parseFloat(a.scrollElement.css("top"))) > 0.001) {
-						acc -= 0.25 * parseFloat(a.scrollElement.css("top")) / initSpeed
+						acc -= 1.2 * parseFloat(a.scrollElement.css("top")) / initSpeed
 					}
 
 					var endSpeed = Math.max(0, (1 + acc)) * initSpeed
